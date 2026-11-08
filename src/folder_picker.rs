@@ -49,38 +49,18 @@ $dialog.Filter = 'Geode mods (*.geode)|*.geode'
 if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write($dialog.FileName) }
 ";
 
-const APPLESCRIPT_FOLDER: &[&str] = &[
-    "on run argv",
-    "try",
-    "set start to (POSIX file (item 1 of argv)) as alias",
-    "on error",
-    "set start to path to home folder",
-    "end try",
-    "return POSIX path of (choose folder default location start)",
-    "end run",
-];
-
-const APPLESCRIPT_DLL_FILE: &[&str] = &[
-    "on run argv",
-    "try",
-    "set start to (POSIX file (item 1 of argv)) as alias",
-    "on error",
-    "set start to path to home folder",
-    "end try",
-    "return POSIX path of (choose file of type {\"dll\"} default location start)",
-    "end run",
-];
-
-const APPLESCRIPT_GEODE_FILE: &[&str] = &[
-    "on run argv",
-    "try",
-    "set start to (POSIX file (item 1 of argv)) as alias",
-    "on error",
-    "set start to path to home folder",
-    "end try",
-    "return POSIX path of (choose file of type {\"geode\"} default location start)",
-    "end run",
-];
+const MAC_PICK_FOLDER: &str = "on run argv
+activate
+POSIX path of (choose folder with prompt \"Pick a Geometry Dash folder\" default location (POSIX file (item 1 of argv)))
+end run";
+const MAC_PICK_DLL: &str = "on run argv
+activate
+POSIX path of (choose file with prompt \"Pick a mod DLL\" of type {\"dll\"} default location (POSIX file (item 1 of argv)))
+end run";
+const MAC_PICK_GEODE: &str = "on run argv
+activate
+POSIX path of (choose file with prompt \"Pick a Geode mod\" of type {\"geode\"} default location (POSIX file (item 1 of argv)))
+end run";
 
 #[derive(Clone, Copy)]
 enum Pick {
@@ -117,7 +97,12 @@ impl FolderPicker {
         if self.is_open() {
             return;
         }
-        let mut command = command(program, pick, start);
+        let home = env::var_os("HOME").map(PathBuf::from);
+        let start = match home {
+            Some(home) if !start.is_dir() => home,
+            _ => start.to_path_buf(),
+        };
+        let mut command = command(program, pick, &start);
         self.picking = Some(Job::spawn(&notify, move || {
             command
                 .output()
@@ -174,17 +159,11 @@ fn arguments(program: &str, pick: Pick, start: &Path) -> Vec<OsString> {
         }
         ("osascript", pick) => {
             let script = match pick {
-                Pick::Folder => APPLESCRIPT_FOLDER,
-                Pick::DllFile => APPLESCRIPT_DLL_FILE,
-                Pick::GeodeFile => APPLESCRIPT_GEODE_FILE,
+                Pick::Folder => MAC_PICK_FOLDER,
+                Pick::DllFile => MAC_PICK_DLL,
+                Pick::GeodeFile => MAC_PICK_GEODE,
             };
-            let mut arguments = Vec::new();
-            for line in script {
-                arguments.push("-e".into());
-                arguments.push((*line).into());
-            }
-            arguments.push(start);
-            arguments
+            vec!["-e".into(), script.into(), start]
         }
         ("kdialog", Pick::Folder) => vec!["--getexistingdirectory".into(), start],
         ("kdialog", Pick::DllFile) => {
