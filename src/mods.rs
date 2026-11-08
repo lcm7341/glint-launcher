@@ -3,6 +3,7 @@ mod echo;
 mod geode_error;
 mod geode_index;
 mod geode_install;
+mod geode_mod_file;
 mod geode_mod_install;
 mod geode_mod_version;
 mod geode_mods;
@@ -18,6 +19,7 @@ pub use echo::{EchoMod, echo_folder, find_echo};
 pub use geode_error::GeodeError;
 pub use geode_index::{INDEX_PAGE_SIZE, IndexMod, IndexPage, search_geode_index};
 pub use geode_install::{has_geode, install_geode, remove_geode};
+pub use geode_mod_file::add_geode_mod_file;
 pub use geode_mod_install::install_geode_mod;
 pub use geode_mods::{
     GeodeMod, GeodeModsReader, read_about, set_geode_mod_enabled, set_geode_mod_pinned,
