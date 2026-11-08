@@ -7,6 +7,7 @@ use std::time::SystemTime;
 use serde_json::{Map, Value};
 
 use crate::mods::ModError;
+use crate::mods::geode_install::geode_dir;
 
 pub(crate) const MODS_FOLDER: &str = "geode/mods";
 
@@ -52,7 +53,7 @@ pub struct GeodeModsReader {
 
 impl GeodeModsReader {
     pub fn list(&mut self, game_dir: &Path, save_dir: &Path) -> io::Result<Vec<GeodeMod>> {
-        let entries = match fs::read_dir(game_dir.join(MODS_FOLDER)) {
+        let entries = match fs::read_dir(geode_dir(game_dir).join(MODS_FOLDER)) {
             Ok(entries) => entries,
             Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
             Err(error) => return Err(error),

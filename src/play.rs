@@ -36,7 +36,7 @@ pub(crate) fn play(launcher: &Launcher, instance: Option<&Instance>) -> Play {
         if let Some(playing) = launcher.playing() {
             return Play::off("Playing", format!("{playing} is open"));
         }
-        return match launcher.cant_play() {
+        return match launcher.cant_play(instance) {
             Some(reason) => Play::off("Play", reason),
             None => Play::on("Play", "Steam has to be running", Action::Play(name)),
         };

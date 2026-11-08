@@ -1,4 +1,4 @@
-use crate::gd::InstanceName;
+use crate::gd::{GdPlatform, InstanceName};
 use crate::instances::{GameFiles, Instance};
 use crate::mods::{fetch_latest_geode, has_geode, install_geode, remove_geode};
 
@@ -35,6 +35,7 @@ impl Launcher {
         }
         let first = FIRST_GEODE_VERSION.parse().expect("a fixed version parses");
         let can_install = !instance.is_linked()
+            && instance.config().platform == GdPlatform::Windows
             && instance.game_files() == GameFiles::Present
             && instance.config().version >= first;
         if can_install {

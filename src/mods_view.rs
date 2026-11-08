@@ -30,6 +30,9 @@ pub(crate) fn show_mods(
                 ModsState::NeedsGeode => {
                     ui.label("Mods for this version need Geode.").muted();
                 }
+                ModsState::NoMacLoader => {
+                    ui.label("No mod loader for pre-2.2 mac builds.").muted();
+                }
                 ModsState::NoLoader { can_install } => {
                     let text = match echo {
                         Some(_) => "Nothing loads other DLL mods here yet.",

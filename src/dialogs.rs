@@ -53,8 +53,10 @@ impl Dialog {
 }
 
 pub(crate) fn default_platform(launcher: &Launcher) -> GdPlatform {
-    GdPlatform::ALL
+    launcher
+        .native_platform()
         .into_iter()
+        .chain(GdPlatform::ALL)
         .find(|platform| launcher.catalog().newest(*platform).is_some())
         .unwrap_or(GdPlatform::Windows)
 }

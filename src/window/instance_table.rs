@@ -66,7 +66,7 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
     if let Some(instance) = instance_at(table.activated_row())
         && instance.game_files() == GameFiles::Present
         && window.launcher.playing().is_none()
-        && window.launcher.cant_play().is_none()
+        && window.launcher.cant_play(instance).is_none()
         && let Some(action) = play(&window.launcher, Some(instance)).action
     {
         window.actions.push(action);
@@ -162,7 +162,7 @@ fn mods_text(window: &Window, instance: &Instance) -> String {
                 parts.push(format!("{on} DLL"));
             }
         }
-        ModsState::NeedsGeode | ModsState::NoLoader { .. } => {}
+        ModsState::NeedsGeode | ModsState::NoLoader { .. } | ModsState::NoMacLoader => {}
     }
     if window
         .launcher

@@ -122,7 +122,7 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
     );
     let save_path = window.launcher.gd_save_dir(instance);
     let save_dir = short_save_dir(&window.launcher.short_path(&save_path));
-    let source = window.launcher.save_source(instance).describe();
+    let source = window.launcher.describe_save(instance);
     field_with_tooltip(
         ui,
         "Save",

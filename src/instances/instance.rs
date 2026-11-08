@@ -74,6 +74,10 @@ impl Instance {
     pub fn proton_dir(&self) -> PathBuf {
         self.folder.join("proton")
     }
+
+    pub fn mac_home_dir(&self) -> PathBuf {
+        self.folder.join("home")
+    }
 }
 
 const GAME_DIR: &str = "game";
