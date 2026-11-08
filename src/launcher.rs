@@ -140,7 +140,6 @@ impl Launcher {
             launcher.notices.push(Notice::failed("HOME isn't set"));
         }
         launcher.refresh();
-        launcher.refresh_found();
         launcher.adopt_steam_install();
         launcher
     }
