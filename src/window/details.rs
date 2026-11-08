@@ -3,6 +3,7 @@ use weft::prelude::{Align, Fixed, FontWeight, Grow, Insets, Justify, Ui};
 
 use super::Window;
 use crate::dialogs::Dialog;
+use crate::geode_index::GeodeIndex;
 use crate::glint_theme::{MUTED, TEXT};
 use crate::icons::{Icon, icon_button};
 use crate::launcher::{Action, ModLoader};
@@ -145,6 +146,8 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
     } else {
         None
     };
+    let can_browse = window.launcher.mod_loader(instance) == ModLoader::Geode;
+    let mut browse = false;
     ui.space(4);
     ui.row()
         .width(Grow(1))
@@ -165,7 +168,18 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
                     window.actions.push(action);
                 }
             }
+            if can_browse {
+                browse = ui
+                    .button("Browse mods…")
+                    .height(24)
+                    .tooltip("Browse Geode mods")
+                    .clicked();
+            }
         });
+    if browse {
+        let index = GeodeIndex::new(instance, window.launcher.notify());
+        window.dialog = Some(Dialog::GeodeIndex(index));
+    }
     ui.column().width(Grow(1)).height(Grow(1)).show(|ui| {
         crate::mods_view::show_mods(ui, &window.launcher, instance, &mut window.actions);
     });

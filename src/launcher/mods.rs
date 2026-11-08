@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use crate::gd::{GdPlatform, GdVersion, InstanceName};
 use crate::instances::{GameFiles, Instance};
+use crate::launch::windows_gd_running;
 use crate::mods::{
     DllLoader, DllMod, GeodeMod, ModsFolder, add_dll_mod, echo_folder, find_mods_folder, has_geode,
     has_mega_hack, install_glint_loader, list_dll_mods, remove_dll_mod, remove_glint_loader,
@@ -45,6 +46,7 @@ pub(crate) enum ModChange {
     SetGeodeEnabled { id: String, enabled: bool },
     SetGeodePinned { id: String, pinned: bool },
     SetEchoEnabled { file_name: String, enabled: bool },
+    InstallFromIndex { id: String, name: String },
 }
 
 #[derive(Default)]
@@ -100,6 +102,9 @@ impl Launcher {
     }
 
     pub(super) fn change_mods(&mut self, name: &InstanceName, change: ModChange) -> Option<Notice> {
+        if let ModChange::InstallFromIndex { id, name: mod_name } = change {
+            return self.start_index_install(name, id, mod_name);
+        }
         let Some(Ok(instance)) = self.find(name) else {
             return Some(Notice::failed(format!("There's no instance \"{name}\"")));
         };
@@ -175,7 +180,8 @@ impl Launcher {
                 | ModChange::SetGeodeEnabled { .. }
                 | ModChange::SetMegaHackEnabled { .. }
                 | ModChange::SetExtensionsEnabled { .. }
-                | ModChange::SetGeodePinned { .. },
+                | ModChange::SetGeodePinned { .. }
+                | ModChange::InstallFromIndex { .. },
                 Some(_),
             ) => None,
             (ModChange::OpenFolder, Some(folder)) => match fs::create_dir_all(&folder) {
@@ -186,6 +192,10 @@ impl Launcher {
                 ))),
             },
         }
+    }
+
+    pub(super) fn may_be_game_open(&self, instance: &Instance) -> bool {
+        self.is_game_open(instance) || (cfg!(windows) && windows_gd_running().unwrap_or(false))
     }
 
     fn pick_mod(&mut self, name: &InstanceName) -> Option<Notice> {

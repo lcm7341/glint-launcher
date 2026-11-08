@@ -1,6 +1,6 @@
 use crate::gd::{GdPlatform, InstanceName};
 use crate::instances::{GameFiles, Instance};
-use crate::mods::{fetch_latest_geode, has_geode, install_geode, remove_geode};
+use crate::mods::{fetch_latest_geode, has_geode, install_geode, install_geode_mod, remove_geode};
 
 use super::{Launcher, Notice};
 use crate::job::Job;
@@ -9,7 +9,13 @@ pub(super) const FIRST_GEODE_VERSION: &str = "2.2";
 
 pub(super) struct GeodeTask {
     instance: InstanceName,
+    index_mod: Option<IndexInstall>,
     job: Job<Result<String, String>>,
+}
+
+struct IndexInstall {
+    id: String,
+    name: String,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -26,7 +32,7 @@ impl Launcher {
         if self
             .geode_task
             .as_ref()
-            .is_some_and(|task| &task.instance == instance.name())
+            .is_some_and(|task| &task.instance == instance.name() && task.index_mod.is_none())
         {
             return ModLoader::InstallingGeode;
         }
@@ -67,6 +73,57 @@ impl Launcher {
         self.push_log(format!("Installing Geode into \"{name}\""));
         self.geode_task = Some(GeodeTask {
             instance: name.clone(),
+            index_mod: None,
+            job,
+        });
+        None
+    }
+
+    pub(crate) fn installing_geode(&self) -> bool {
+        self.geode_task.is_some()
+    }
+
+    pub(crate) fn installing_mod(&self, name: &InstanceName) -> Option<&str> {
+        let task = self.geode_task.as_ref()?;
+        let index_mod = task.index_mod.as_ref()?;
+        (&task.instance == name).then_some(index_mod.id.as_str())
+    }
+
+    pub(super) fn start_index_install(
+        &mut self,
+        name: &InstanceName,
+        id: String,
+        mod_name: String,
+    ) -> Option<Notice> {
+        if self.geode_task.is_some() {
+            return Some(Notice::failed("Already installing something"));
+        }
+        let Some(Ok(instance)) = self.find(name) else {
+            return Some(Notice::failed(format!("There's no instance \"{name}\"")));
+        };
+        let game_dir = instance.game_dir();
+        if !has_geode(&game_dir) {
+            return Some(Notice::failed("Install Geode first"));
+        }
+        if self.may_be_game_open(instance) {
+            return Some(Notice::failed("Close the game first"));
+        }
+        let version = instance.config().version.clone();
+        let platform = instance.config().platform;
+        let wanted = id.clone();
+        let job = Job::spawn(&self.notify, move || {
+            install_geode_mod(&game_dir, &wanted, &version, platform)
+                .map(|names| match names.split_first() {
+                    Some((first, [])) => first.clone(),
+                    Some((first, needed)) => format!("{first}, with {}", needed.join(", ")),
+                    None => wanted,
+                })
+                .map_err(|error| error.to_string())
+        });
+        self.push_log(format!("Installing {mod_name} ({id}) into \"{name}\""));
+        self.geode_task = Some(GeodeTask {
+            instance: name.clone(),
+            index_mod: Some(IndexInstall { id, name: mod_name }),
             job,
         });
         None
@@ -93,10 +150,22 @@ impl Launcher {
             return;
         };
         let name = task.instance.clone();
+        let index_mod = task
+            .index_mod
+            .as_ref()
+            .map(|index_mod| index_mod.name.clone());
         self.geode_task = None;
-        self.notices.push(match outcome {
-            Ok(version) => Notice::done(format!("Installed Geode {version} into \"{name}\"")),
-            Err(reason) => Notice::failed(format!("Couldn't install Geode: {reason}")),
+        self.notices.push(match (outcome, index_mod) {
+            (Ok(version), None) => {
+                Notice::done(format!("Installed Geode {version} into \"{name}\""))
+            }
+            (Err(reason), None) => Notice::failed(format!("Couldn't install Geode: {reason}")),
+            (Ok(installed), Some(_)) => {
+                Notice::done(format!("Installed {installed} into \"{name}\""))
+            }
+            (Err(reason), Some(mod_name)) => {
+                Notice::failed(format!("Couldn't install {mod_name}: {reason}"))
+            }
         });
     }
 }

@@ -7,6 +7,7 @@ pub enum GeodeError {
     Checksum,
     Archive(String),
     Io(io::Error),
+    NoModVersion { id: String, gd: String },
 }
 
 impl fmt::Display for GeodeError {
@@ -19,6 +20,9 @@ impl fmt::Display for GeodeError {
             }
             Self::Archive(error) => write!(formatter, "the download can't be unpacked: {error}"),
             Self::Io(error) => write!(formatter, "couldn't write the files: {error}"),
+            Self::NoModVersion { id, gd } => {
+                write!(formatter, "no {id} for GD {gd} on this platform")
+            }
         }
     }
 }

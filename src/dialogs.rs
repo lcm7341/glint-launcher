@@ -6,6 +6,7 @@ use weft::prelude::{Fixed, Grow, Justify, Ui};
 
 use crate::add_existing::AddExisting;
 use crate::form::{DIALOG_WIDTH, empty_label, field_label, show_field_hint, show_form};
+use crate::geode_index::GeodeIndex;
 use crate::launcher::{Action, Launcher};
 use crate::sentence::home_relative;
 use crate::window::Window;
@@ -25,6 +26,7 @@ pub(crate) enum Dialog {
         linked: Option<PathBuf>,
     },
     AddExisting(AddExisting),
+    GeodeIndex(GeodeIndex),
 }
 
 impl Dialog {
@@ -75,6 +77,9 @@ pub(crate) fn show(ui: &mut Ui, window: &mut Window) {
         Dialog::Rename { from, name } => show_rename(ui, window, &mut open, from, name),
         Dialog::Delete { name, linked } => show_delete(ui, window, &mut open, name, linked),
         Dialog::AddExisting(add) => crate::add_existing::show(ui, window, &mut open, add),
+        Dialog::GeodeIndex(index) => {
+            index.show(ui, &mut open, &window.launcher, &mut window.actions);
+        }
     }
     if open && window.dialog.is_none() {
         window.dialog = Some(dialog);
