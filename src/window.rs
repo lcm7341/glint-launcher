@@ -60,7 +60,7 @@ impl Window {
             .width(Grow(1))
             .height(Grow(1))
             .show(|ui| {
-                title_bar::show(ui, &self.icon);
+                title_bar::show(ui, &self.icon, crate::SYSTEM_BUTTONS);
                 toolbar::show(ui, self);
                 ui.separator();
                 if self.show_log {
