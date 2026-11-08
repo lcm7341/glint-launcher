@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ffi::OsString;
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::Path;
@@ -42,6 +43,7 @@ impl DepotProcess {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        hide_console(&mut command);
         let mut child = command.spawn()?;
         let stdout = child.stdout.take().expect("stdout was piped");
         let stderr = child.stderr.take().expect("stderr was piped");
@@ -88,6 +90,17 @@ impl Drop for DepotProcess {
     }
 }
 
+#[cfg(windows)]
+fn hide_console(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_console(_command: &mut Command) {}
+
 fn forward_lines(output: impl Read, sender: &Sender<DepotUpdate>, notify: &dyn Fn()) {
     let mut reader = BufReader::new(output);
     let mut line = Vec::new();
@@ -96,7 +109,7 @@ fn forward_lines(output: impl Read, sender: &Sender<DepotUpdate>, notify: &dyn F
         match reader.read_until(b'\n', &mut line) {
             Ok(0) | Err(_) => return,
             Ok(_) => {
-                if let Some(event) = parse_output_line(&String::from_utf8_lossy(&line)) {
+                if let Some(event) = parse_output_line(&to_text(&line)) {
                     if sender.send(DepotUpdate::Event(event)).is_err() {
                         return;
                     }
@@ -105,4 +118,20 @@ fn forward_lines(output: impl Read, sender: &Sender<DepotUpdate>, notify: &dyn F
             }
         }
     }
+}
+
+// piped output on windows is in the oem code page, qr blocks come through as 0xDB
+fn to_text(line: &[u8]) -> Cow<'_, str> {
+    if let Ok(text) = str::from_utf8(line) {
+        return Cow::Borrowed(text);
+    }
+    let text = line
+        .iter()
+        .map(|&byte| match byte {
+            0xDB => '█',
+            byte if byte.is_ascii() => char::from(byte),
+            _ => char::REPLACEMENT_CHARACTER,
+        })
+        .collect();
+    Cow::Owned(text)
 }

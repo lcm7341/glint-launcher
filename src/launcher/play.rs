@@ -12,6 +12,8 @@ use super::{Launcher, Notice, Notify};
 
 const NATIVE_PLATFORM: Option<GdPlatform> = if cfg!(target_os = "macos") {
     Some(GdPlatform::MacOs)
+} else if cfg!(target_os = "windows") {
+    Some(GdPlatform::Windows)
 } else {
     None
 };
@@ -106,12 +108,16 @@ impl Launcher {
 
     pub(crate) fn gd_save_dir(&self, instance: &Instance) -> PathBuf {
         if self.is_native(instance) {
-            let home = own_mac_home(instance).unwrap_or_else(|| {
-                std::env::var_os("HOME")
-                    .map(PathBuf::from)
-                    .unwrap_or_default()
-            });
-            return home.join("Library/Application Support/GeometryDash");
+            return match instance.config().platform {
+                GdPlatform::MacOs => own_mac_home(instance)
+                    .unwrap_or_else(|| {
+                        std::env::var_os("HOME")
+                            .map(PathBuf::from)
+                            .unwrap_or_default()
+                    })
+                    .join("Library/Application Support/GeometryDash"),
+                GdPlatform::Windows => windows_local_app_data().join("GeometryDash"),
+            };
         }
         self.save_source(instance)
             .compat_dir(instance)
@@ -120,9 +126,12 @@ impl Launcher {
 
     pub(crate) fn describe_save(&self, instance: &Instance) -> &'static str {
         if self.is_native(instance) {
-            return match own_mac_home(instance) {
-                Some(_) => "Its own",
-                None => "Shared with Steam",
+            let has_own =
+                instance.config().platform == GdPlatform::MacOs && own_mac_home(instance).is_some();
+            return if has_own {
+                "Its own"
+            } else {
+                "Shared with Steam"
             };
         }
         self.save_source(instance).describe()
@@ -206,14 +215,17 @@ impl Launcher {
         let notify = Arc::clone(&self.notify);
         let notify = move || notify();
         let (started, how) = if self.is_native(instance) {
-            (
-                GameProcess::start_mac(
+            let started = match instance.config().platform {
+                GdPlatform::MacOs => GameProcess::start_mac(
                     &instance.game_dir(),
                     own_mac_home(instance).as_deref(),
                     notify,
                 ),
-                "directly".to_owned(),
-            )
+                GdPlatform::Windows => {
+                    GameProcess::start_windows(&instance.game_dir(), !instance.is_linked(), notify)
+                }
+            };
+            (started, "directly".to_owned())
         } else {
             let (Some(steam_folder), Some(proton)) = (&self.steam_folder, &self.proton) else {
                 return None;
@@ -250,4 +262,10 @@ impl Launcher {
 
 fn own_mac_home(instance: &Instance) -> Option<PathBuf> {
     (!instance.is_linked()).then(|| instance.mac_home_dir())
+}
+
+fn windows_local_app_data() -> PathBuf {
+    std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_default()
 }

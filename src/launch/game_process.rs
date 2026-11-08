@@ -8,7 +8,7 @@ use std::thread;
 
 use crate::gd::GD_APP_ID;
 
-use crate::launch::{LaunchRequest, MAC_PROGRAM, mac_game_command};
+use crate::launch::{LaunchRequest, MAC_PROGRAM, mac_game_command, windows_game_command};
 
 pub const STEAM_APP_ID_FILE: &str = "steam_appid.txt";
 
@@ -27,6 +27,17 @@ impl GameProcess {
         }
         fs::create_dir_all(request.compat_dir())?;
         Self::watch(request.to_command(), notify)
+    }
+
+    pub fn start_windows(
+        game_dir: &Path,
+        may_write_game_dir: bool,
+        notify: impl Fn() + Send + 'static,
+    ) -> io::Result<Self> {
+        if may_write_game_dir {
+            write_app_id_file(game_dir)?;
+        }
+        Self::watch(windows_game_command(game_dir), notify)
     }
 
     pub fn start_mac(
