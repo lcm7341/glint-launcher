@@ -19,6 +19,7 @@ impl Launcher {
         &self.found
     }
 
+    // not at startup, reading desktop/documents/downloads pops a permission prompt on macos
     pub(crate) fn refresh_found(&mut self) {
         let folders: Vec<PathBuf> = self
             .steam_install()
@@ -44,7 +45,10 @@ impl Launcher {
         let (Some(store), Some(install)) = (&self.store, self.steam_install()) else {
             return;
         };
-        if store.data_dir().steam_removed_path().exists() || self.is_linked_anywhere(&install) {
+        if recognize_install(&install).is_err()
+            || store.data_dir().steam_removed_path().exists()
+            || self.is_linked_anywhere(&install)
+        {
             return;
         }
         let name: InstanceName = "Steam".parse().expect("valid name");
