@@ -1,0 +1,7 @@
+LIBRARY XInput9_1_0
+EXPORTS
+    XInputGetCapabilities @1
+    XInputGetDSoundAudioDeviceGuids @2
+    XInputGetState @3
+    XInputSetState @4
+    glint_loader DATA

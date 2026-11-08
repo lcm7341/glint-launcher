@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Glint
+GenericName=Geometry Dash launcher
+Comment=Play and mod every Geometry Dash version
+Exec=glint
+Icon=glint
+Terminal=false
+Categories=Game;
+StartupWMClass=glint

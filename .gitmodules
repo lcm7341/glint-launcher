@@ -1,0 +1,3 @@
+[submodule "vendor/weft"]
+	path = vendor/weft
+	url = ../weft
