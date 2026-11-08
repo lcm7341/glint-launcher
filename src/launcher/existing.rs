@@ -1,17 +1,17 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::gd::InstanceName;
+use crate::depot::steam_app_install;
+use crate::gd::{GD_APP_ID, InstanceName};
 use crate::instances::{FoundInstall, find_installs, recognize_install, same_folder};
 
 use super::{Launcher, Notice};
 
 impl Launcher {
     pub(crate) fn steam_install(&self) -> Option<PathBuf> {
-        let install = self
-            .steam_folder
-            .as_ref()?
-            .join("steamapps/common/Geometry Dash");
+        let steam_folder = self.steam_folder.as_ref()?;
+        let install = steam_app_install(steam_folder, GD_APP_ID)
+            .unwrap_or_else(|| steam_folder.join("steamapps/common/Geometry Dash"));
         install.is_dir().then_some(install)
     }
 

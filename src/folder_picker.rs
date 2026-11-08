@@ -10,8 +10,11 @@ pub(crate) struct FolderPicker {
     picking: Option<Job<Option<PathBuf>>>,
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 const PICKERS: &[&str] = &["kdialog", "zenity"];
+
+#[cfg(target_os = "macos")]
+const PICKERS: &[&str] = &["osascript"];
 
 #[cfg(windows)]
 const PICKERS: &[&str] = &["powershell.exe"];
@@ -39,6 +42,28 @@ $dialog.InitialDirectory = $env:GLINT_PICKER_START
 $dialog.Filter = 'DLL mods (*.dll)|*.dll'
 if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write($dialog.FileName) }
 ";
+
+const APPLESCRIPT_FOLDER: &[&str] = &[
+    "on run argv",
+    "try",
+    "set start to (POSIX file (item 1 of argv)) as alias",
+    "on error",
+    "set start to path to home folder",
+    "end try",
+    "return POSIX path of (choose folder default location start)",
+    "end run",
+];
+
+const APPLESCRIPT_DLL_FILE: &[&str] = &[
+    "on run argv",
+    "try",
+    "set start to (POSIX file (item 1 of argv)) as alias",
+    "on error",
+    "set start to path to home folder",
+    "end try",
+    "return POSIX path of (choose file of type {\"dll\"} default location start)",
+    "end run",
+];
 
 #[derive(Clone, Copy)]
 enum Pick {
@@ -123,6 +148,19 @@ fn arguments(program: &str, pick: Pick, start: &Path) -> Vec<OsString> {
                 Pick::DllFile => POWERSHELL_DLL_FILE,
             };
             ps_args(&format!("{POWERSHELL_PRELUDE}{script}"))
+        }
+        ("osascript", pick) => {
+            let script = match pick {
+                Pick::Folder => APPLESCRIPT_FOLDER,
+                Pick::DllFile => APPLESCRIPT_DLL_FILE,
+            };
+            let mut arguments = Vec::new();
+            for line in script {
+                arguments.push("-e".into());
+                arguments.push((*line).into());
+            }
+            arguments.push(start);
+            arguments
         }
         ("kdialog", Pick::Folder) => vec!["--getexistingdirectory".into(), start],
         ("kdialog", Pick::DllFile) => {
