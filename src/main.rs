@@ -7,6 +7,7 @@ mod download;
 mod folder_picker;
 mod form;
 mod gd;
+mod geode_index;
 mod geode_mods_view;
 mod glint_theme;
 mod icons;
