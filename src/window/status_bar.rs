@@ -13,7 +13,7 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
         .show(|ui| {
             if let Some(download) = window.launcher.download() {
                 ui.row().gap(8).align(Align::Center).show(|ui| {
-                    ui.label(format!("Downloading {}", download.instance()))
+                    ui.label(format!("Downloading GD {}", download.version()))
                         .wrap(false)
                         .font_size(12);
                     ui.progress(download.fraction())

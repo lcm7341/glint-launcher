@@ -12,6 +12,7 @@ mod pe_timestamp;
 mod platform;
 mod settings;
 mod steam_app;
+mod steam_key_values;
 mod version;
 
 pub use build_timestamp::version_for_timestamp;
@@ -28,4 +29,5 @@ pub use pe_timestamp::{PE_HEADER_BYTES, pe_timestamp};
 pub use platform::GdPlatform;
 pub use settings::Settings;
 pub use steam_app::GD_APP_ID;
+pub use steam_key_values::{steam_key_values, steam_value};
 pub use version::GdVersion;

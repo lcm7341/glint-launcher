@@ -1,10 +1,11 @@
 use std::path::Path;
 
 use crate::depot::{DepotEvent, DepotProcess, DepotUpdate};
-use crate::gd::InstanceName;
+use crate::gd::{GdVersion, InstanceName};
 
 pub(crate) struct Download {
     instance: InstanceName,
+    version: GdVersion,
     process: DepotProcess,
     stage: Stage,
     fraction: Option<f32>,
@@ -37,11 +38,13 @@ pub(crate) enum Outcome {
 impl Download {
     pub(crate) fn new(
         instance: InstanceName,
+        version: GdVersion,
         process: DepotProcess,
         signs_in_with_qr: bool,
     ) -> Self {
         Self {
             instance,
+            version,
             process,
             signs_in_with_qr,
             stage: Stage::SigningIn,
@@ -58,6 +61,10 @@ impl Download {
 
     pub(crate) fn instance(&self) -> &InstanceName {
         &self.instance
+    }
+
+    pub(crate) fn version(&self) -> &GdVersion {
+        &self.version
     }
 
     pub(crate) fn fraction(&self) -> Option<f32> {

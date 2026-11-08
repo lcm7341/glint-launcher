@@ -102,6 +102,7 @@ impl Launcher {
         let notify = Arc::clone(&self.notify);
         match DepotProcess::start(&program, &request, move || notify()) {
             Ok(process) => {
+                let version = entry.version.clone();
                 let how = match &account {
                     Some(account) => format!("as {account}"),
                     None => "signing in with a QR code".to_owned(),
@@ -111,7 +112,12 @@ impl Launcher {
                     entry.version,
                     entry.platform.display_name()
                 ));
-                self.download = Some(Download::new(name.clone(), process, account.is_none()));
+                self.download = Some(Download::new(
+                    name.clone(),
+                    version,
+                    process,
+                    account.is_none(),
+                ));
                 None
             }
             Err(error) => Some(Notice::failed(format!(
