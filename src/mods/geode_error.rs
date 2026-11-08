@@ -8,6 +8,8 @@ pub enum GeodeError {
     Archive(String),
     Io(io::Error),
     NoModVersion { id: String, gd: String },
+    NotAGeodeMod(String),
+    UnreadableModFile { file: String, error: io::Error },
 }
 
 impl fmt::Display for GeodeError {
@@ -22,6 +24,10 @@ impl fmt::Display for GeodeError {
             Self::Io(error) => write!(formatter, "couldn't write the files: {error}"),
             Self::NoModVersion { id, gd } => {
                 write!(formatter, "no {id} for GD {gd} on this platform")
+            }
+            Self::NotAGeodeMod(file) => write!(formatter, "{file} isn't a .geode file"),
+            Self::UnreadableModFile { file, error } => {
+                write!(formatter, "couldn't read {file}: {error}")
             }
         }
     }

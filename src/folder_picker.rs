@@ -43,6 +43,12 @@ $dialog.Filter = 'DLL mods (*.dll)|*.dll'
 if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write($dialog.FileName) }
 ";
 
+const POWERSHELL_GEODE_FILE: &str = "$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.InitialDirectory = $env:GLINT_PICKER_START
+$dialog.Filter = 'Geode mods (*.geode)|*.geode'
+if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write($dialog.FileName) }
+";
+
 const APPLESCRIPT_FOLDER: &[&str] = &[
     "on run argv",
     "try",
@@ -65,10 +71,22 @@ const APPLESCRIPT_DLL_FILE: &[&str] = &[
     "end run",
 ];
 
+const APPLESCRIPT_GEODE_FILE: &[&str] = &[
+    "on run argv",
+    "try",
+    "set start to (POSIX file (item 1 of argv)) as alias",
+    "on error",
+    "set start to path to home folder",
+    "end try",
+    "return POSIX path of (choose file of type {\"geode\"} default location start)",
+    "end run",
+];
+
 #[derive(Clone, Copy)]
 enum Pick {
     Folder,
     DllFile,
+    GeodeFile,
 }
 
 impl FolderPicker {
@@ -86,6 +104,10 @@ impl FolderPicker {
 
     pub(crate) fn open_dll_file(&mut self, start: &Path, notify: Notify) {
         self.open_for(Pick::DllFile, start, notify);
+    }
+
+    pub(crate) fn open_geode_file(&mut self, start: &Path, notify: Notify) {
+        self.open_for(Pick::GeodeFile, start, notify);
     }
 
     fn open_for(&mut self, pick: Pick, start: &Path, notify: Notify) {
@@ -146,6 +168,7 @@ fn arguments(program: &str, pick: Pick, start: &Path) -> Vec<OsString> {
             let script = match pick {
                 Pick::Folder => POWERSHELL_FOLDER,
                 Pick::DllFile => POWERSHELL_DLL_FILE,
+                Pick::GeodeFile => POWERSHELL_GEODE_FILE,
             };
             ps_args(&format!("{POWERSHELL_PRELUDE}{script}"))
         }
@@ -153,6 +176,7 @@ fn arguments(program: &str, pick: Pick, start: &Path) -> Vec<OsString> {
             let script = match pick {
                 Pick::Folder => APPLESCRIPT_FOLDER,
                 Pick::DllFile => APPLESCRIPT_DLL_FILE,
+                Pick::GeodeFile => APPLESCRIPT_GEODE_FILE,
             };
             let mut arguments = Vec::new();
             for line in script {
@@ -166,9 +190,19 @@ fn arguments(program: &str, pick: Pick, start: &Path) -> Vec<OsString> {
         ("kdialog", Pick::DllFile) => {
             vec!["--getopenfilename".into(), start, "DLL mods (*.dll)".into()]
         }
+        ("kdialog", Pick::GeodeFile) => {
+            vec![
+                "--getopenfilename".into(),
+                start,
+                "Geode mods (*.geode)".into(),
+            ]
+        }
         (_, Pick::Folder) => vec!["--file-selection".into(), "--directory".into(), start],
-        (_, Pick::DllFile) => {
-            let filter = "--file-filter=DLL mods | *.dll *.DLL";
+        (_, pick) => {
+            let filter = match pick {
+                Pick::GeodeFile => "--file-filter=Geode mods | *.geode *.GEODE",
+                _ => "--file-filter=DLL mods | *.dll *.DLL",
+            };
             // zenity needs the trailing slash
             let mut filename = OsString::from("--filename=");
             filename.push(start);

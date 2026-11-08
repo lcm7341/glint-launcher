@@ -6,7 +6,7 @@ use crate::dialogs::Dialog;
 use crate::geode_index::GeodeIndex;
 use crate::glint_theme::{MUTED, TEXT};
 use crate::icons::{Icon, icon_button};
-use crate::launcher::{Action, ModLoader};
+use crate::launcher::{Action, Launcher, ModChange, ModLoader};
 
 const LABEL_WIDTH: f32 = 96.0;
 
@@ -174,6 +174,19 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
                     .height(24)
                     .tooltip("Browse Geode mods")
                     .clicked();
+                if Launcher::can_pick_mod()
+                    && ui
+                        .button("Add mod…")
+                        .height(24)
+                        .enabled(!window.launcher.is_picking_mod())
+                        .tooltip("Add a .geode file")
+                        .clicked()
+                {
+                    window.actions.push(Action::Mod {
+                        instance: instance.name().clone(),
+                        change: ModChange::Add,
+                    });
+                }
             }
         });
     if browse {

@@ -7,10 +7,10 @@ use crate::gd::{GdPlatform, GdVersion, InstanceName};
 use crate::instances::{GameFiles, Instance};
 use crate::launch::windows_gd_running;
 use crate::mods::{
-    DllLoader, DllMod, GeodeMod, ModsFolder, add_dll_mod, echo_folder, find_mods_folder, has_geode,
-    has_mega_hack, install_glint_loader, list_dll_mods, remove_dll_mod, remove_glint_loader,
-    set_dll_mod_enabled, set_extensions_enabled, set_geode_mod_enabled, set_geode_mod_pinned,
-    set_mega_hack_enabled,
+    DllLoader, DllMod, GeodeMod, ModsFolder, add_dll_mod, add_geode_mod_file, echo_folder,
+    find_mods_folder, has_geode, has_mega_hack, install_glint_loader, list_dll_mods,
+    remove_dll_mod, remove_glint_loader, set_dll_mod_enabled, set_extensions_enabled,
+    set_geode_mod_enabled, set_geode_mod_pinned, set_mega_hack_enabled,
 };
 
 use super::geode::FIRST_GEODE_VERSION;
@@ -53,6 +53,7 @@ pub(crate) enum ModChange {
 pub(super) struct ModPicker {
     picker: FolderPicker,
     instance: Option<InstanceName>,
+    is_geode: bool,
 }
 
 impl ModsState {
@@ -118,6 +119,12 @@ impl Launcher {
         if is_geode_setting && self.is_game_open(instance) {
             return Some(Notice::failed("Close the game first"));
         }
+        if change == ModChange::Add && has_geode(&game_dir) {
+            if self.may_be_game_open(instance) {
+                return Some(Notice::failed("Close the game first"));
+            }
+            return self.pick_mod(name, true);
+        }
         if let ModChange::SetGeodePinned { id, pinned } = &change {
             let verb = if *pinned { "pin" } else { "unpin" };
             return set_geode_mod_pinned(&self.gd_save_dir(instance), id, *pinned)
@@ -174,7 +181,7 @@ impl Launcher {
                     Err(error) => Notice::failed(format!("Couldn't remove the mod: {error}")),
                 })
             }
-            (ModChange::Add, Some(_)) => self.pick_mod(name),
+            (ModChange::Add, Some(_)) => self.pick_mod(name, false),
             (
                 ModChange::SetEchoEnabled { .. }
                 | ModChange::SetGeodeEnabled { .. }
@@ -198,7 +205,7 @@ impl Launcher {
         self.is_game_open(instance) || (cfg!(windows) && windows_gd_running().unwrap_or(false))
     }
 
-    fn pick_mod(&mut self, name: &InstanceName) -> Option<Notice> {
+    fn pick_mod(&mut self, name: &InstanceName, is_geode: bool) -> Option<Notice> {
         if !Self::can_pick_mod() {
             return Some(Notice::failed(
                 "No file picker found (install kdialog or zenity)",
@@ -208,8 +215,13 @@ impl Launcher {
         let downloads = home.join("Downloads");
         let start = if downloads.is_dir() { downloads } else { home };
         let notify = self.notify();
-        self.mod_picker.picker.open_dll_file(&start, notify);
+        if is_geode {
+            self.mod_picker.picker.open_geode_file(&start, notify);
+        } else {
+            self.mod_picker.picker.open_dll_file(&start, notify);
+        }
         self.mod_picker.instance = Some(name.clone());
+        self.mod_picker.is_geode = is_geode;
         None
     }
 
@@ -220,6 +232,11 @@ impl Launcher {
         let Some(name) = self.mod_picker.instance.take() else {
             return;
         };
+        if self.mod_picker.is_geode {
+            let notice = self.add_geode_file(&name, &source);
+            self.notices.push(notice);
+            return;
+        }
         let folder = match self.find(&name) {
             Some(Ok(instance)) => find_mods_folder(&instance.game_dir()),
             _ => None,
@@ -230,6 +247,33 @@ impl Launcher {
             None => Notice::failed(format!("Nothing loads mods in \"{name}\"")),
         };
         self.notices.push(notice);
+    }
+
+    fn add_geode_file(&self, name: &InstanceName, source: &Path) -> Notice {
+        let Some(Ok(instance)) = self.find(name) else {
+            return Notice::failed(format!("There's no instance \"{name}\""));
+        };
+        if self.may_be_game_open(instance) {
+            return Notice::failed("Close the game first");
+        }
+        let config = instance.config();
+        let gd = &config.version;
+        match add_geode_mod_file(&instance.game_dir(), source, gd, config.platform) {
+            Ok(added) if added.is_made_for_gd => {
+                Notice::done(format!("Added {} to \"{name}\"", added.name))
+            }
+            Ok(added) => {
+                let made_for = match added.made_for {
+                    Some(made_for) => format!("is made for GD {made_for}"),
+                    None => format!("doesn't say it supports {}", config.platform.display_name()),
+                };
+                Notice::done(format!(
+                    "Added {} to \"{name}\", but it {made_for}, not {gd}",
+                    added.name
+                ))
+            }
+            Err(error) => Notice::failed(format!("Couldn't add the mod: {error}")),
+        }
     }
 }
 
