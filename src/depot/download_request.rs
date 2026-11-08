@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::gd::{CatalogEntry, GD_APP_ID};
 
@@ -11,6 +11,7 @@ pub struct DownloadRequest {
     username: Option<String>,
     remembers_password: bool,
     signs_in_with_qr: bool,
+    manifest_only: bool,
 }
 
 impl DownloadRequest {
@@ -21,6 +22,7 @@ impl DownloadRequest {
             username: None,
             remembers_password: false,
             signs_in_with_qr: false,
+            manifest_only: false,
         }
     }
 
@@ -41,6 +43,19 @@ impl DownloadRequest {
         self
     }
 
+    pub fn with_manifest_only(mut self, manifest_only: bool) -> Self {
+        self.manifest_only = manifest_only;
+        self
+    }
+
+    pub fn entry(&self) -> &CatalogEntry {
+        &self.entry
+    }
+
+    pub fn folder(&self) -> &Path {
+        &self.folder
+    }
+
     pub fn to_arguments(&self) -> Vec<OsString> {
         let mut arguments: Vec<OsString> = vec![
             "-app".into(),
@@ -59,6 +74,9 @@ impl DownloadRequest {
             arguments.push("-qr".into());
         } else if let Some(username) = &self.username {
             arguments.extend(["-username".into(), username.into()]);
+        }
+        if self.manifest_only {
+            arguments.push("-manifest-only".into());
         }
         if self.remembers_password {
             arguments.push("-remember-password".into());

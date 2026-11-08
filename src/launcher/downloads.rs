@@ -1,10 +1,12 @@
+use std::cmp::Ordering;
 use std::sync::Arc;
 
 use crate::depot::{DepotProcess, DownloadRequest};
-use crate::gd::InstanceName;
+use crate::gd::{GdVersion, InstanceName};
+use crate::instances::{GameFiles, Instance};
 
 use super::{Launcher, Notice};
-use crate::download::{Download, Outcome};
+use crate::download::{DepotStart, Download, Outcome, SeedFolders, Seeding};
 
 impl Launcher {
     pub(crate) fn download(&self) -> Option<&Download> {
@@ -86,6 +88,7 @@ impl Launcher {
                 config.platform.display_name()
             )));
         };
+        let starts_fresh = !instance.is_linked() && instance.has_empty_game_dir();
         if let Err(error) = instance.mark_download_started() {
             return Some(Notice::failed(format!(
                 "Couldn't prepare {}: {error}",
@@ -99,6 +102,46 @@ impl Launcher {
             Some(account) => request.with_username(account.clone()),
             None => request.with_qr(true),
         };
+        if let Some(account) = &account
+            && starts_fresh
+            && let Some(seed) = self.seed_for(instance)
+        {
+            let from = seed.config().version.clone();
+            let listing_request = DownloadRequest::new(entry.clone(), instance.download_temp_dir())
+                .with_username(account.clone())
+                .with_remember_password(true);
+            let folders = SeedFolders {
+                seed: seed.game_dir(),
+                target: instance.game_dir(),
+            };
+            let line = format!(
+                "Downloading {} {} into \"{name}\" as {account}, copying from \"{}\" ({from})",
+                entry.version,
+                entry.platform.display_name(),
+                seed.name()
+            );
+            let seeding = Seeding::start(
+                program.clone(),
+                listing_request,
+                folders,
+                from,
+                Arc::clone(&self.notify),
+            );
+            let then = DepotStart {
+                program,
+                request,
+                notify: Arc::clone(&self.notify),
+            };
+            let version = entry.version.clone();
+            self.push_log(line);
+            self.download = Some(Download::after_seeding(
+                name.clone(),
+                version,
+                seeding,
+                then,
+            ));
+            return None;
+        }
         let notify = Arc::clone(&self.notify);
         match DepotProcess::start(&program, &request, move || notify()) {
             Ok(process) => {
@@ -126,4 +169,28 @@ impl Launcher {
             ))),
         }
     }
+
+    fn seed_for(&self, instance: &Instance) -> Option<&Instance> {
+        let platform = instance.config().platform;
+        let target = &instance.config().version;
+        self.instances
+            .iter()
+            .filter_map(|entry| entry.as_ref().ok())
+            .filter(|other| {
+                other.name() != instance.name()
+                    && other.config().platform == platform
+                    && other.game_files() == GameFiles::Present
+                    && other.game_dir() != instance.game_dir()
+            })
+            .min_by(|a, b| closer(target, &a.config().version, &b.config().version))
+    }
+}
+
+fn closer(target: &GdVersion, a: &GdVersion, b: &GdVersion) -> Ordering {
+    let distance = |version: &GdVersion| (as_decimal(version) - as_decimal(target)).abs();
+    distance(a).total_cmp(&distance(b)).then_with(|| b.cmp(a))
+}
+
+fn as_decimal(version: &GdVersion) -> f64 {
+    version.to_string().parse().unwrap_or(0.0)
 }
