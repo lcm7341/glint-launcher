@@ -68,6 +68,7 @@ pub(crate) struct Launcher {
     instances: Vec<Result<Instance, InstanceError>>,
     notices: Vec<Notice>,
     depot_downloader: Option<PathBuf>,
+    depot_fetch: Option<DepotFetch>,
     settings: Settings,
     download: Option<Download>,
     notify: Notify,
@@ -85,6 +86,7 @@ pub(crate) struct Launcher {
     folder_opener: FolderOpener,
 }
 
+mod depot_fetch;
 mod downloads;
 mod existing;
 mod folders;
@@ -93,6 +95,7 @@ mod mods;
 mod mods_cache;
 mod play;
 
+use depot_fetch::DepotFetch;
 use geode::GeodeTask;
 pub(crate) use geode::ModLoader;
 use mods::ModPicker;
@@ -114,6 +117,7 @@ impl Launcher {
             instances: Vec::new(),
             notices: Vec::new(),
             depot_downloader,
+            depot_fetch: None,
             settings: Settings::default(),
             download: None,
             notify: Arc::clone(&notify),
@@ -242,6 +246,7 @@ impl Launcher {
     }
 
     pub(crate) fn poll(&mut self) {
+        self.poll_depot_fetch();
         self.poll_download();
         self.poll_game();
         self.poll_geode();

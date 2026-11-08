@@ -71,7 +71,7 @@ impl Launcher {
             return Some(Notice::failed("Already downloading"));
         }
         let Some(program) = self.depot_downloader.clone() else {
-            return Some(Notice::failed("DepotDownloader not found"));
+            return self.fetch_depot_for(name);
         };
         let Some(Ok(instance)) = self.find(name) else {
             return Some(Notice::failed(format!(
