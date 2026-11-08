@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use crate::gd::{GdVersion, InstanceName};
+use crate::gd::{GdPlatform, GdVersion, InstanceName};
 use crate::instances::{GameFiles, Instance};
 use crate::mods::{
     DllLoader, DllMod, GeodeMod, ModsFolder, add_dll_mod, echo_folder, find_mods_folder, has_geode,
@@ -25,6 +25,7 @@ pub(crate) enum ModsState {
     NoLoader {
         can_install: bool,
     },
+    NoMacLoader,
     Dll {
         loader: DllLoader,
         mods: Result<Vec<DllMod>, String>,
@@ -81,6 +82,9 @@ impl Launcher {
         }
         if instance.config().version >= first_geode_version() {
             return ModsState::NeedsGeode;
+        }
+        if instance.config().platform == GdPlatform::MacOs {
+            return ModsState::NoMacLoader;
         }
         ModsState::NoLoader {
             can_install: instance.game_files() == GameFiles::Present,

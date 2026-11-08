@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::{Cursor, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use sha2::{Digest, Sha256};
@@ -15,8 +15,23 @@ const GEODE_FILES: &[&str] = &[
     "XInput1_4.dll",
 ];
 
+const MAC_GEODE_DIR: &str = "Geometry Dash.app/Contents";
+
 pub fn has_geode(game_dir: &Path) -> bool {
     game_dir.join("Geode.dll").is_file()
+        || game_dir
+            .join(MAC_GEODE_DIR)
+            .join("Frameworks/Geode.dylib")
+            .is_file()
+}
+
+pub(crate) fn geode_dir(game_dir: &Path) -> PathBuf {
+    let mac = game_dir.join(MAC_GEODE_DIR);
+    if mac.is_dir() {
+        mac
+    } else {
+        game_dir.to_path_buf()
+    }
 }
 
 pub fn install_geode(game_dir: &Path, release: &GeodeRelease) -> Result<(), GeodeError> {
