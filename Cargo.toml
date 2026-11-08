@@ -1,0 +1,29 @@
+[package]
+name = "glint"
+description = "geometry dash launcher"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+serde_json = "1"
+sha2 = "0.10"
+ureq = "3"
+weft = { path = "vendor/weft" }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+allow_attributes_without_reason = "warn"
+dbg_macro = "warn"
+too_many_lines = "warn"
+wildcard_imports = "warn"
+
+[workspace]
+exclude = ["vendor"]
+
+# weft is too slow unoptimized to scroll smoothly
+[profile.dev.package."*"]
+opt-level = 3

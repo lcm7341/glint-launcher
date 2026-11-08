@@ -1,0 +1,90 @@
+# Geometry Dash releases the launcher knows how to download
+#
+# One release per line: version, platform (windows or macos), manifest id.
+# Versions are written the way GD writes them, so 2.2 is 2.200 and 1.9 is
+# 1.900; trailing zeros don't make a different version.
+#
+# Windows (depot 322171): every manifest SteamDB lists for the depot. SteamDB
+# gives only the date each manifest was first seen, and every one appeared
+# within hours after a GD build. Each build's time is the PE timestamp in its
+# GeometryDash.exe, which Geode's Windows loader lists by version
+# (gdTimestampMap.hpp), so each manifest is matched to the latest build
+# before it was seen. All five that have been downloaded so far (2.2091,
+# 2.209, 2.2081, 2.2074, 2.113) were checked by their exe's timestamp and
+# match. The others are matched by date only until downloaded.
+
+# Downloaded and checked: Steam's installed manifest, timestamp 1792203143
+2.2091 windows 73633010031412782
+# Downloaded and checked: timestamp 1791899187
+2.209 windows 1618314541028205441
+# Downloaded and checked: timestamp 1768959392
+2.2081 windows 3816559102876907245
+2.208 windows 4708369212204820145
+# Downloaded and checked: timestamp 1731376950
+2.2074 windows 7678373534998244044
+2.2073 windows 7061773846290027563
+2.2072 windows 6397429455085000806
+2.2071 windows 1924617755796511196
+2.207 windows 7323959135167311541
+2.206 windows 7903404280228366327
+2.204 windows 2530486154587189554
+2.203 windows 8259882692733807559
+2.202 windows 2018952014081804638
+2.201 windows 6284244757349794393
+2.200 windows 3500860979376500740
+# Downloaded and checked: timestamp 1511220108, and runs Mega Hack v7 and
+# Echo 2.1. speedrun.com's downgrade guide calls this id 2.11
+2.113 windows 641118531549408775
+2.112 windows 220851016460276263
+2.111 windows 3295169357678211274
+2.110 windows 4631472650007457724
+2.102 windows 4058039153940377450
+2.101 windows 3342223721911279245
+2.100 windows 2062255848267380058
+# The least certain: Geode lists 2.011 and 2.020 with the same exe
+# timestamp, so 2.02 changed files other than the exe. This manifest came
+# three weeks after that exe, and 2.011's came within the hour
+2.020 windows 631879647548207429
+2.011 windows 542142667514100820
+2.010 windows 1327679890501772194
+2.001 windows 2135166447199899913
+2.000 windows 1050808584461628025
+1.920 windows 1039208287639585563
+1.910 windows 4586891070648157831
+1.900 windows 1667324974366136291
+
+# macOS (depot 322172): every manifest SteamDB lists for the depot, pasted
+# by the owner (2026-11-07). There is no macOS timestamp table, so each is
+# matched to the Windows build it appeared after: every one was first seen
+# within about two hours of a build in Geode's Windows table, and the depot
+# simply has none for the builds macOS skipped (1.91, and 2.201 to 2.204).
+# 2.011 and 2.020 share an exe there, so as on Windows the one seen that
+# hour is 2.011 and the one three weeks later 2.020
+
+# Downloaded and checked
+2.2091 macos 2113602821724303233
+2.209 macos 2131419855495080080
+# Downloaded and checked
+2.2081 macos 8780295549609362522
+2.208 macos 5565617296015139190
+2.2074 macos 8771064225227566581
+2.2073 macos 5346182360832981188
+2.2072 macos 953180444297982246
+2.2071 macos 7070842205681130956
+2.207 macos 6297159254787250301
+2.206 macos 6862317728889446455
+2.200 macos 5480421616064682096
+2.113 macos 311197510282623618
+2.112 macos 3371622967842289542
+2.111 macos 629275213319516596
+2.110 macos 4109733801799520495
+2.102 macos 3879985298306870050
+2.101 macos 8087555969737142661
+2.100 macos 3746053949313479256
+2.020 macos 3679303774267221616
+2.011 macos 7444339281508408451
+2.010 macos 1510900452065806441
+2.001 macos 445984664084436569
+2.000 macos 1205194774244374358
+1.920 macos 8029292747114450792
+1.900 macos 2664202369787012044

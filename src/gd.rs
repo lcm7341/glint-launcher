@@ -1,0 +1,27 @@
+mod build_timestamp;
+mod catalog;
+mod catalog_entry;
+mod catalog_error;
+mod instance_config;
+mod instance_name;
+mod manifest;
+mod parse_error;
+mod pe_timestamp;
+mod platform;
+mod settings;
+mod steam_app;
+mod version;
+
+pub use build_timestamp::version_for_timestamp;
+pub use catalog::Catalog;
+pub use catalog_entry::CatalogEntry;
+pub use catalog_error::CatalogError;
+pub use instance_config::InstanceConfig;
+pub use instance_name::InstanceName;
+pub use manifest::ManifestId;
+pub use parse_error::ParseError;
+pub use pe_timestamp::{PE_HEADER_BYTES, pe_timestamp};
+pub use platform::GdPlatform;
+pub use settings::Settings;
+pub use steam_app::GD_APP_ID;
+pub use version::GdVersion;
