@@ -94,6 +94,8 @@ mod geode;
 mod mods;
 mod mods_cache;
 mod play;
+mod windows_save;
+mod windows_steam;
 
 use depot_fetch::DepotFetch;
 use geode::GeodeTask;
@@ -145,6 +147,7 @@ impl Launcher {
         }
         launcher.refresh();
         launcher.adopt_steam_install();
+        launcher.finish_save_swap();
         launcher
     }
 
@@ -256,7 +259,7 @@ impl Launcher {
 
     pub(crate) fn apply(&mut self, action: Action) {
         self.forget_mods();
-        if self.store.is_none() {
+        if self.store.is_none() || self.refuses_while_playing(&action) {
             return;
         }
         if let Action::Delete(name) = &action {

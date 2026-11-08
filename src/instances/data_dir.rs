@@ -43,6 +43,14 @@ impl DataDir {
         self.root.join("steam-instance-removed")
     }
 
+    pub fn save_swap_lock_path(&self) -> PathBuf {
+        self.root.join("save-swap.lock")
+    }
+
+    pub fn save_backups_dir(&self) -> PathBuf {
+        self.root.join("save-backups")
+    }
+
     pub fn tools_dir(&self) -> PathBuf {
         self.root.join("tools")
     }

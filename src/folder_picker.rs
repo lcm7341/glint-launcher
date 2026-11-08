@@ -10,7 +10,35 @@ pub(crate) struct FolderPicker {
     picking: Option<Job<Option<PathBuf>>>,
 }
 
+#[cfg(not(windows))]
 const PICKERS: &[&str] = &["kdialog", "zenity"];
+
+#[cfg(windows)]
+const PICKERS: &[&str] = &["powershell.exe"];
+
+#[cfg(windows)]
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+const POWERSHELL_PRELUDE: &str = "\
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.Application]::EnableVisualStyles()
+$owner = New-Object System.Windows.Forms.Form -Property @{ TopMost = $true }
+";
+
+const POWERSHELL_FOLDER: &str = "\
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.SelectedPath = $env:GLINT_PICKER_START
+if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write($dialog.SelectedPath) }
+";
+
+const POWERSHELL_DLL_FILE: &str = "\
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.InitialDirectory = $env:GLINT_PICKER_START
+$dialog.Filter = 'DLL mods (*.dll)|*.dll'
+if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write($dialog.FileName) }
+";
 
 #[derive(Clone, Copy)]
 enum Pick {
@@ -42,12 +70,9 @@ impl FolderPicker {
         if self.is_open() {
             return;
         }
-        let arguments = arguments(program, pick, start);
+        let mut command = command(program, pick, start);
         self.picking = Some(Job::spawn(&notify, move || {
-            Command::new(program)
-                .args(arguments)
-                .stdin(Stdio::null())
-                .stderr(Stdio::null())
+            command
                 .output()
                 .ok()
                 .filter(|output| output.status.success())
@@ -73,9 +98,32 @@ fn picker() -> Option<&'static str> {
         .find(|program| dirs.iter().any(|dir| dir.join(program).is_file()))
 }
 
+fn command(program: &str, pick: Pick, start: &Path) -> Command {
+    let mut command = Command::new(program);
+    command
+        .args(arguments(program, pick, start))
+        .stdin(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command
+            .env("GLINT_PICKER_START", start)
+            .creation_flags(CREATE_NO_WINDOW);
+    }
+    command
+}
+
 fn arguments(program: &str, pick: Pick, start: &Path) -> Vec<OsString> {
     let start = start.as_os_str().to_owned();
     match (program, pick) {
+        ("powershell.exe", pick) => {
+            let script = match pick {
+                Pick::Folder => POWERSHELL_FOLDER,
+                Pick::DllFile => POWERSHELL_DLL_FILE,
+            };
+            ps_args(&format!("{POWERSHELL_PRELUDE}{script}"))
+        }
         ("kdialog", Pick::Folder) => vec!["--getexistingdirectory".into(), start],
         ("kdialog", Pick::DllFile) => {
             vec!["--getopenfilename".into(), start, "DLL mods (*.dll)".into()]
@@ -90,4 +138,15 @@ fn arguments(program: &str, pick: Pick, start: &Path) -> Vec<OsString> {
             vec!["--file-selection".into(), filename, filter.into()]
         }
     }
+}
+
+fn ps_args(script: &str) -> Vec<OsString> {
+    // forms dialogs need sta
+    vec![
+        "-NoProfile".into(),
+        "-NonInteractive".into(),
+        "-STA".into(),
+        "-Command".into(),
+        script.into(),
+    ]
 }

@@ -5,6 +5,9 @@ mod install_search;
 mod instance;
 mod instance_error;
 mod instance_store;
+mod save_swap;
+mod save_swap_error;
+mod swap_lock;
 
 pub use data_dir::DataDir;
 pub use existing_install::recognize_install;
@@ -13,3 +16,5 @@ pub use install_search::{FoundInstall, find_installs, same_folder};
 pub use instance::Instance;
 pub use instance_error::InstanceError;
 pub use instance_store::InstanceStore;
+pub use save_swap::SaveSwap;
+pub use save_swap_error::SaveSwapError;
