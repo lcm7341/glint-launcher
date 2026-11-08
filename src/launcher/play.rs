@@ -8,6 +8,8 @@ use crate::gd::{GD_APP_ID, GdPlatform, InstanceName};
 use crate::instances::{Instance, same_folder};
 use crate::launch::{GameProcess, LaunchRequest, PROTON_NAME, is_running_in, running_game_dirs};
 
+use super::windows_save::usual_save_dir;
+use super::windows_steam::steam_needed_notice;
 use super::{Launcher, Notice, Notify};
 
 const NATIVE_PLATFORM: Option<GdPlatform> = if cfg!(target_os = "macos") {
@@ -22,6 +24,7 @@ pub(super) struct Game {
     pub(super) instance: InstanceName,
     pub(super) process: GameProcess,
     pub(super) started: Instant,
+    pub(super) is_save_swapped: bool,
 }
 
 pub(super) struct RunningGames {
@@ -116,7 +119,16 @@ impl Launcher {
                             .unwrap_or_default()
                     })
                     .join("Library/Application Support/GeometryDash"),
-                GdPlatform::Windows => windows_local_app_data().join("GeometryDash"),
+                GdPlatform::Windows => {
+                    let is_swapped_in = self.game.as_ref().is_some_and(|game| {
+                        game.is_save_swapped && game.instance == *instance.name()
+                    });
+                    if instance.is_linked() || is_swapped_in {
+                        usual_save_dir().unwrap_or_default()
+                    } else {
+                        instance.save_dir()
+                    }
+                }
             };
         }
         self.save_source(instance)
@@ -126,12 +138,10 @@ impl Launcher {
 
     pub(crate) fn describe_save(&self, instance: &Instance) -> &'static str {
         if self.is_native(instance) {
-            let has_own =
-                instance.config().platform == GdPlatform::MacOs && own_mac_home(instance).is_some();
-            return if has_own {
-                "Its own"
-            } else {
+            return if instance.is_linked() {
                 "Shared with Steam"
+            } else {
+                "Its own"
             };
         }
         self.save_source(instance).describe()
@@ -187,6 +197,7 @@ impl Launcher {
         }
         let quick = game.started.elapsed() < Duration::from_secs(8);
         let name = game.instance.clone();
+        let is_save_swapped = game.is_save_swapped;
         self.game = None;
         if quick {
             self.notices.push(Notice::failed(format!(
@@ -194,6 +205,9 @@ impl Launcher {
             )));
         } else {
             self.push_log(format!("\"{name}\" closed"));
+        }
+        if is_save_swapped {
+            self.finish_save_swap();
         }
     }
 
@@ -214,6 +228,7 @@ impl Launcher {
         }
         let notify = Arc::clone(&self.notify);
         let notify = move || notify();
+        let mut is_save_swapped = false;
         let (started, how) = if self.is_native(instance) {
             let started = match instance.config().platform {
                 GdPlatform::MacOs => GameProcess::start_mac(
@@ -222,6 +237,13 @@ impl Launcher {
                     notify,
                 ),
                 GdPlatform::Windows => {
+                    if let Some(notice) = steam_needed_notice() {
+                        return Some(notice);
+                    }
+                    is_save_swapped = match self.swap_save_in(instance) {
+                        Ok(is_swapped) => is_swapped,
+                        Err(reason) => return Some(Notice::failed(reason)),
+                    };
                     GameProcess::start_windows(&instance.game_dir(), !instance.is_linked(), notify)
                 }
             };
@@ -252,20 +274,20 @@ impl Launcher {
                     instance: name.clone(),
                     process,
                     started: Instant::now(),
+                    is_save_swapped,
                 });
                 None
             }
-            Err(error) => Some(Notice::failed(format!("Couldn't start the game: {error}"))),
+            Err(error) => {
+                if is_save_swapped {
+                    self.finish_save_swap();
+                }
+                Some(Notice::failed(format!("Couldn't start the game: {error}")))
+            }
         }
     }
 }
 
 fn own_mac_home(instance: &Instance) -> Option<PathBuf> {
     (!instance.is_linked()).then(|| instance.mac_home_dir())
-}
-
-fn windows_local_app_data() -> PathBuf {
-    std::env::var_os("LOCALAPPDATA")
-        .map(PathBuf::from)
-        .unwrap_or_default()
 }
