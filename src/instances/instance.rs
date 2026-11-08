@@ -36,6 +36,19 @@ impl Instance {
         fs::write(self.game_dir().join(INCOMPLETE_MARKER), b"")
     }
 
+    pub fn has_empty_game_dir(&self) -> bool {
+        match fs::read_dir(self.game_dir()) {
+            Ok(entries) => entries
+                .filter_map(Result::ok)
+                .all(|entry| entry.file_name() == INCOMPLETE_MARKER),
+            Err(_) => true,
+        }
+    }
+
+    pub fn download_temp_dir(&self) -> PathBuf {
+        self.folder.join("download-temp")
+    }
+
     pub fn mark_download_finished(&self) -> io::Result<()> {
         match fs::remove_file(self.game_dir().join(INCOMPLETE_MARKER)) {
             Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error),

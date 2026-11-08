@@ -1,12 +1,19 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use crate::depot::{DepotEvent, DepotProcess, DepotUpdate};
+use crate::depot::{DepotEvent, DepotProcess, DepotUpdate, DownloadRequest};
 use crate::gd::{GdVersion, InstanceName};
+
+use crate::launcher::Notify;
+
+mod seeding;
+
+pub(crate) use seeding::{SeedFolders, Seeding};
 
 pub(crate) struct Download {
     instance: InstanceName,
     version: GdVersion,
-    process: DepotProcess,
+    work: Work,
     stage: Stage,
     fraction: Option<f32>,
     file: Option<String>,
@@ -17,6 +24,17 @@ pub(crate) struct Download {
     qr_code: Vec<Vec<bool>>,
     signed_in_as: Option<String>,
     logged_tenths: u8,
+}
+
+enum Work {
+    Seeding { seeding: Seeding, then: DepotStart },
+    Depot(DepotProcess),
+}
+
+pub(crate) struct DepotStart {
+    pub(crate) program: PathBuf,
+    pub(crate) request: DownloadRequest,
+    pub(crate) notify: Notify,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -42,10 +60,28 @@ impl Download {
         process: DepotProcess,
         signs_in_with_qr: bool,
     ) -> Self {
+        Self::with_work(instance, version, Work::Depot(process), signs_in_with_qr)
+    }
+
+    pub(crate) fn after_seeding(
+        instance: InstanceName,
+        version: GdVersion,
+        seeding: Seeding,
+        then: DepotStart,
+    ) -> Self {
+        Self::with_work(instance, version, Work::Seeding { seeding, then }, false)
+    }
+
+    fn with_work(
+        instance: InstanceName,
+        version: GdVersion,
+        work: Work,
+        signs_in_with_qr: bool,
+    ) -> Self {
         Self {
             instance,
             version,
-            process,
+            work,
             signs_in_with_qr,
             stage: Stage::SigningIn,
             fraction: None,
@@ -72,6 +108,9 @@ impl Download {
     }
 
     pub(crate) fn detail(&self) -> String {
+        if let Work::Seeding { seeding, .. } = &self.work {
+            return seeding.detail();
+        }
         match self.stage {
             Stage::SigningIn => "Signing in to Steam".to_owned(),
             Stage::ScanQrCode => "Scan the QR code".to_owned(),
@@ -85,7 +124,30 @@ impl Download {
     }
 
     pub(crate) fn poll(&mut self, log: &mut Vec<String>) -> Option<Outcome> {
-        for update in self.process.take_updates() {
+        if let Work::Seeding { seeding, then } = &self.work {
+            let result = seeding.take_result()?;
+            if seeding.is_cancelled() {
+                return Some(Outcome::Failed("cancelled while copying files".to_owned()));
+            }
+            log.push(match result {
+                Ok(bytes) => format!("Copied {} MB from {}", bytes / 1_000_000, seeding.from()),
+                Err(reason) => format!("Couldn't copy from {}: {reason}", seeding.from()),
+            });
+            let notify = Arc::clone(&then.notify);
+            match DepotProcess::start(&then.program, &then.request, move || notify()) {
+                Ok(process) => self.work = Work::Depot(process),
+                Err(error) => {
+                    return Some(Outcome::Failed(format!(
+                        "couldn't start DepotDownloader at {}: {error}",
+                        then.program.display()
+                    )));
+                }
+            }
+        }
+        let Work::Depot(process) = &self.work else {
+            return None;
+        };
+        for update in process.take_updates() {
             match update {
                 DepotUpdate::Event(event) => {
                     log.extend(self.describe(&event));
@@ -110,7 +172,10 @@ impl Download {
     }
 
     pub(crate) fn cancel(&self) {
-        self.process.cancel();
+        match &self.work {
+            Work::Seeding { seeding, .. } => seeding.cancel(),
+            Work::Depot(process) => process.cancel(),
+        }
     }
 
     fn describe(&mut self, event: &DepotEvent) -> Option<String> {
