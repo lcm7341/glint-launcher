@@ -42,6 +42,9 @@ pub(crate) fn play(launcher: &Launcher, instance: Option<&Instance>) -> Play {
         };
     }
 
+    if launcher.fetching_depot() {
+        return Play::off("Preparing", "Getting DepotDownloader");
+    }
     if let Some(download) = launcher.download() {
         return if download.instance() == instance.name() {
             Play::off("Downloading", "")
@@ -62,12 +65,13 @@ pub(crate) fn play(launcher: &Launcher, instance: Option<&Instance>) -> Play {
         (true, None) => {
             format!("Download {version} (sign in with a QR code)")
         }
+        (false, _) if launcher.can_fetch_depot() => format!("Download {version}"),
         (false, _) => match launcher.tools_dir() {
             Some(tools) => format!("DepotDownloader not found, put it in {}", tools.display()),
             None => "DepotDownloader not found".to_owned(),
         },
     };
-    if has_tool {
+    if has_tool || launcher.can_fetch_depot() {
         Play::on(label, hint, Action::Download(name))
     } else {
         Play::off(label, hint)

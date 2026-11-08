@@ -1,6 +1,8 @@
 mod depot_event;
 mod depot_process;
 mod download_request;
+mod fetch;
+mod fetch_error;
 mod locate;
 mod output_line;
 mod steam_folder;
@@ -9,6 +11,8 @@ mod steam_shortcuts;
 pub use depot_event::DepotEvent;
 pub use depot_process::{DepotProcess, DepotUpdate};
 pub use download_request::DownloadRequest;
+pub use fetch::{DEPOT_DOWNLOADER_VERSION, fetch_depot};
+pub use fetch_error::FetchError;
 pub use locate::find_depot;
 pub use output_line::parse_output_line;
 pub use steam_folder::steam_folder;
