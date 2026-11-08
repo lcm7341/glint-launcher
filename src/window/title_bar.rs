@@ -8,13 +8,14 @@ const HEIGHT: f32 = 34.0;
 
 const ICON: f32 = 16.0;
 
-pub(super) fn show(ui: &mut Ui, icon: &weft::gfx::Image) {
+pub(super) fn show(ui: &mut Ui, icon: &weft::gfx::Image, system_buttons: bool) {
+    let start = if system_buttons { 80.0 } else { 10.0 };
     let bar = ui
         .row()
         .width(Grow(1))
         .gap(8)
         .align(Align::Center)
-        .padding(Insets::new(0.0, 0.0, 0.0, 10.0))
+        .padding(Insets::new(0.0, 0.0, 0.0, start))
         .style(|style| style.min_height(HEIGHT))
         .sense(Sense::CLICK_AND_DRAG)
         .show(|ui| {
@@ -23,7 +24,9 @@ pub(super) fn show(ui: &mut Ui, icon: &weft::gfx::Image) {
                 .font_size(12)
                 .truncate()
                 .style(|style| style.color(MUTED).weight(FontWeight::MEDIUM).width(Grow(1)));
-            window_buttons(ui);
+            if !system_buttons {
+                window_buttons(ui);
+            }
         })
         .response;
     if bar.double_clicked() {
