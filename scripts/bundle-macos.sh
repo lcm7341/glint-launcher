@@ -7,14 +7,18 @@ if [ "$(uname)" != "Darwin" ]; then
   exit 1
 fi
 
-cargo build --release --bin glint
+targets=(aarch64-apple-darwin x86_64-apple-darwin)
+for target in "${targets[@]}"; do
+  cargo build --release --bin glint --target "$target"
+done
 version="$(cargo metadata --no-deps --format-version 1 \
   | sed -n 's/.*"name":"glint","version":"\([^"]*\)".*/\1/p')"
 
 app="target/release/Glint.app"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-cp target/release/glint "$app/Contents/MacOS/glint"
+lipo -create -output "$app/Contents/MacOS/glint" \
+  "target/${targets[0]}/release/glint" "target/${targets[1]}/release/glint"
 cp assets/icons/glint.icns "$app/Contents/Resources/glint.icns"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -34,5 +38,9 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
+
+# ad hoc sign the whole bundle or macos calls the download damaged
+codesign --force --sign - "$app"
+codesign --verify --strict "$app"
 
 echo "Built $app"
