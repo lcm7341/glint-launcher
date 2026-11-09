@@ -1,6 +1,5 @@
 use weft::prelude::{Grow, Insets, Ui};
 use weft::text::FontFamily;
-use weft::ui::ScrollTarget;
 
 use crate::glint_theme::WELL;
 use crate::launcher::Launcher;
@@ -18,24 +17,23 @@ pub(super) fn show(ui: &mut Ui, launcher: &Launcher, seen: usize) -> usize {
                 ui.label("Nothing yet.").muted();
                 return;
             }
-            let area = ui.child_id("log");
-            ui.scroll_area()
-                .id(area)
-                .name("Launcher log")
-                .height(Grow(1))
-                .show(|ui| {
-                    for (index, line) in log.iter().enumerate() {
-                        ui.push_id(index, |ui| {
-                            ui.label(line.clone())
-                                .wrap(false)
-                                .font_size(12)
-                                .style(|style| style.font_family(FontFamily::Monospace));
-                        });
-                    }
-                });
-            if log.len() != seen {
-                ui.scroll_to(area, ScrollTarget::Bottom);
+            let mut list = ui
+                .virtual_list(log.len())
+                .id(ui.child_id("log"))
+                .row_height(18.0);
+            // ScrollTarget::Bottom doesn't work in a virtual list
+            if launcher.log_added() != seen {
+                list = list.scroll_to(log.len() - 1);
             }
+            list.name("Launcher log")
+                .width(Grow(1))
+                .height(Grow(1))
+                .show(|ui, index| {
+                    ui.label(log[index].clone())
+                        .wrap(false)
+                        .font_size(12)
+                        .style(|style| style.font_family(FontFamily::Monospace));
+                });
         });
-    log.len()
+    launcher.log_added()
 }
