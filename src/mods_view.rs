@@ -1,3 +1,4 @@
+use crate::gd::GdPlatform;
 use crate::instances::Instance;
 use crate::mods::{DllLoader, DllMod, EchoMod, GeodeMod, MegaHackLoader};
 use weft::prelude::{Align, Grow, Insets, Ui};
@@ -31,7 +32,7 @@ pub(crate) fn show_mods(
                     ui.label("Mods for this version need Geode.").muted();
                 }
                 ModsState::NoMacLoader => {
-                    ui.label("No mod loader for pre-2.2 mac builds.").muted();
+                    show_old_mac_build(ui, launcher, instance, actions);
                 }
                 ModsState::NoLoader { can_install } => {
                     let text = match echo {
@@ -243,4 +244,32 @@ fn show_mod(
             }
         });
     });
+}
+
+fn show_old_mac_build(
+    ui: &mut Ui,
+    launcher: &Launcher,
+    instance: &Instance,
+    actions: &mut Vec<Action>,
+) {
+    let version = &instance.config().version;
+    let windows = launcher.catalog().find(version, GdPlatform::Windows);
+    let text = match windows {
+        Some(_) => {
+            format!("Pre-2.2 mac builds can't run. Use the Windows build of {version} for mods.")
+        }
+        None => "Pre-2.2 mac builds can't run.".to_owned(),
+    };
+    ui.label(text).muted();
+    if let Some(entry) = windows
+        && ui
+            .button("Make a Windows instance")
+            .tooltip(format!("New Windows instance of {version}"))
+            .clicked()
+    {
+        actions.push(Action::Create {
+            name: None,
+            entry: entry.clone(),
+        });
+    }
 }

@@ -6,6 +6,7 @@ use weft::ui::Shortcut;
 
 use crate::dialogs::Dialog;
 use crate::launcher::{Action, Launcher};
+use crate::play::Click;
 
 mod details;
 mod instance_table;
@@ -104,6 +105,13 @@ impl Window {
 
     fn can_change(&self, instance: &Instance) -> bool {
         !self.is_downloading(instance) && self.launcher.playing() != Some(instance.name())
+    }
+
+    fn click(&mut self, click: Click) {
+        match click {
+            Click::Run(action) => self.actions.push(action),
+            Click::SetUpWindows(name) => self.dialog = Some(Dialog::WindowsSetup(name)),
+        }
     }
 
     fn handle_shortcuts(&mut self, ui: &mut Ui) {

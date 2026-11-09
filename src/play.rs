@@ -1,11 +1,17 @@
+use crate::gd::InstanceName;
 use crate::instances::{GameFiles, Instance};
 
-use crate::launcher::{Action, Launcher};
+use crate::launcher::{Action, Launcher, WindowsSupport};
 
 pub(crate) struct Play {
     pub(crate) label: &'static str,
     pub(crate) hint: String,
-    pub(crate) action: Option<Action>,
+    pub(crate) click: Option<Click>,
+}
+
+pub(crate) enum Click {
+    Run(Action),
+    SetUpWindows(InstanceName),
 }
 
 impl Play {
@@ -13,15 +19,15 @@ impl Play {
         Self {
             label,
             hint: hint.into(),
-            action: None,
+            click: None,
         }
     }
 
-    fn on(label: &'static str, hint: impl Into<String>, action: Action) -> Self {
+    fn on(label: &'static str, hint: impl Into<String>, click: Click) -> Self {
         Self {
             label,
             hint: hint.into(),
-            action: Some(action),
+            click: Some(click),
         }
     }
 }
@@ -36,9 +42,28 @@ pub(crate) fn play(launcher: &Launcher, instance: Option<&Instance>) -> Play {
         if let Some(playing) = launcher.playing() {
             return Play::off("Playing", format!("{playing} is open"));
         }
+        if launcher.is_windows_on_mac(instance) {
+            match launcher.windows_support() {
+                WindowsSupport::NotSetUp => {
+                    return Play::on(
+                        "Set up",
+                        "Set up Wine for pre-2.2 versions",
+                        Click::SetUpWindows(name),
+                    );
+                }
+                WindowsSupport::SettingUp(step) => {
+                    return Play::off("Setting up", format!("{}…", step.describe()));
+                }
+                WindowsSupport::Ready => {}
+            }
+        }
         return match launcher.cant_play(instance) {
             Some(reason) => Play::off("Play", reason),
-            None => Play::on("Play", "Steam has to be running", Action::Play(name)),
+            None => Play::on(
+                "Play",
+                "Steam has to be running",
+                Click::Run(Action::Play(name)),
+            ),
         };
     }
 
@@ -72,7 +97,7 @@ pub(crate) fn play(launcher: &Launcher, instance: Option<&Instance>) -> Play {
         },
     };
     if has_tool || launcher.can_fetch_depot() {
-        Play::on(label, hint, Action::Download(name))
+        Play::on(label, hint, Click::Run(Action::Download(name)))
     } else {
         Play::off(label, hint)
     }

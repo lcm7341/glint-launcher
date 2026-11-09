@@ -4,13 +4,15 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::depot::shortcut_compat_dir;
-use crate::gd::{GD_APP_ID, GdPlatform, InstanceName};
+use crate::gd::{GD_APP_ID, GdPlatform, GdVersion, InstanceName};
 use crate::instances::{Instance, same_folder};
-use crate::launch::{GameProcess, LaunchRequest, PROTON_NAME, is_running_in, running_game_dirs};
+use crate::launch::{
+    GameProcess, LaunchRequest, PROTON_NAME, has_steam_drm, is_running_in, running_game_dirs,
+};
 
 use super::windows_save::usual_save_dir;
 use super::windows_steam::steam_needed_notice;
-use super::{Launcher, Notice, Notify};
+use super::{Launcher, Notice, Notify, WindowsSupport};
 
 const NATIVE_PLATFORM: Option<GdPlatform> = if cfg!(target_os = "macos") {
     Some(GdPlatform::MacOs)
@@ -25,6 +27,7 @@ pub(super) struct Game {
     pub(super) process: GameProcess,
     pub(super) started: Instant,
     pub(super) is_save_swapped: bool,
+    pub(super) quick_exit_hint: &'static str,
 }
 
 pub(super) struct RunningGames {
@@ -110,6 +113,9 @@ impl Launcher {
     }
 
     pub(crate) fn gd_save_dir(&self, instance: &Instance) -> PathBuf {
+        if self.is_windows_on_mac(instance) {
+            return instance.save_dir();
+        }
         if self.is_native(instance) {
             return match instance.config().platform {
                 GdPlatform::MacOs => own_mac_home(instance)
@@ -137,6 +143,9 @@ impl Launcher {
     }
 
     pub(crate) fn describe_save(&self, instance: &Instance) -> &'static str {
+        if self.is_windows_on_mac(instance) {
+            return "Its own";
+        }
         if self.is_native(instance) {
             return if instance.is_linked() {
                 "Shared with Steam"
@@ -155,6 +164,11 @@ impl Launcher {
         NATIVE_PLATFORM == Some(instance.config().platform)
     }
 
+    pub(crate) fn is_windows_on_mac(&self, instance: &Instance) -> bool {
+        NATIVE_PLATFORM == Some(GdPlatform::MacOs)
+            && instance.config().platform == GdPlatform::Windows
+    }
+
     pub(crate) fn is_game_open(&self, instance: &Instance) -> bool {
         if self.playing() == Some(instance.name()) {
             return true;
@@ -166,11 +180,18 @@ impl Launcher {
     pub(crate) fn cant_play(&self, instance: &Instance) -> Option<String> {
         let platform = instance.config().platform;
         if self.is_native(instance) {
-            return None;
+            let is_encrypted =
+                platform == GdPlatform::MacOs && is_encrypted_mac_build(&instance.config().version);
+            return is_encrypted.then(|| {
+                format!(
+                    "Pre-2.2 mac builds are encrypted. Use a Windows instance of {}",
+                    instance.config().version
+                )
+            });
         }
         match (NATIVE_PLATFORM, platform) {
             (Some(GdPlatform::MacOs), GdPlatform::Windows) => {
-                return Some("Windows builds don't run on macOS, use the mac build".to_owned());
+                return self.wine_cant_play();
             }
             (_, GdPlatform::MacOs) => {
                 return Some("Mac builds only run on a Mac".to_owned());
@@ -181,6 +202,13 @@ impl Launcher {
             (None, _) => Some("Steam not found".to_owned()),
             (Some(_), None) => Some(format!("Install {PROTON_NAME} in Steam first")),
             (Some(_), Some(_)) => None,
+        }
+    }
+
+    fn wine_cant_play(&self) -> Option<String> {
+        match self.windows_support() {
+            WindowsSupport::SettingUp(step) => Some(format!("{}…", step.describe())),
+            WindowsSupport::NotSetUp | WindowsSupport::Ready => None,
         }
     }
 
@@ -198,11 +226,11 @@ impl Launcher {
         let quick = game.started.elapsed() < Duration::from_secs(8);
         let name = game.instance.clone();
         let is_save_swapped = game.is_save_swapped;
+        let hint = game.quick_exit_hint;
         self.game = None;
         if quick {
-            self.notices.push(Notice::failed(format!(
-                "{name} closed right away. Is Steam running?"
-            )));
+            self.notices
+                .push(Notice::failed(format!("{name} closed right away. {hint}")));
         } else {
             self.push_log(format!("\"{name}\" closed"));
         }
@@ -226,10 +254,28 @@ impl Launcher {
         if let Some(reason) = self.cant_play(instance) {
             return Some(Notice::failed(reason));
         }
+        let has_drm = instance.config().platform == GdPlatform::Windows
+            && has_steam_drm(&instance.game_dir().join("GeometryDash.exe"));
+        if has_drm && !self.is_windows_on_mac(instance) {
+            return Some(Notice::failed(format!(
+                "{} has Steam DRM and only runs from Steam's own install",
+                instance.config().version
+            )));
+        }
         let notify = Arc::clone(&self.notify);
         let notify = move || notify();
         let mut is_save_swapped = false;
-        let (started, how) = if self.is_native(instance) {
+        let mut quick_exit_hint = "Is Steam running?";
+        let (started, how) = if self.is_windows_on_mac(instance) {
+            if self.windows_support() == WindowsSupport::NotSetUp {
+                return self.start_windows_setup();
+            }
+            quick_exit_hint = "Is Steam signed in?";
+            match self.start_on_wine(instance, has_drm, notify) {
+                Ok(started) => started,
+                Err(notice) => return notice,
+            }
+        } else if self.is_native(instance) {
             let started = match instance.config().platform {
                 GdPlatform::MacOs => GameProcess::start_mac(
                     &instance.game_dir(),
@@ -275,6 +321,7 @@ impl Launcher {
                     process,
                     started: Instant::now(),
                     is_save_swapped,
+                    quick_exit_hint,
                 });
                 None
             }
@@ -290,4 +337,9 @@ impl Launcher {
 
 fn own_mac_home(instance: &Instance) -> Option<PathBuf> {
     (!instance.is_linked()).then(|| instance.mac_home_dir())
+}
+
+// drm wrapped: 1.9, 1.92, 2.113. not from 2.2074 on
+pub(crate) fn is_encrypted_mac_build(version: &GdVersion) -> bool {
+    *version < "2.2".parse().expect("a fixed version parses")
 }

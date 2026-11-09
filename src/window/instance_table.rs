@@ -67,9 +67,9 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
         && instance.game_files() == GameFiles::Present
         && window.launcher.playing().is_none()
         && window.launcher.cant_play(instance).is_none()
-        && let Some(action) = play(&window.launcher, Some(instance)).action
+        && let Some(click) = play(&window.launcher, Some(instance)).click
     {
-        window.actions.push(action);
+        window.click(click);
     }
 }
 
