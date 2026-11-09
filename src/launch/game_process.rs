@@ -5,10 +5,14 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
+use std::time::Duration;
 
 use crate::gd::GD_APP_ID;
 
-use crate::launch::{LaunchRequest, MAC_PROGRAM, mac_game_command, windows_game_command};
+use crate::launch::steam_library::is_steam_gd_running;
+use crate::launch::{
+    LaunchRequest, MAC_PROGRAM, WineSteam, mac_game_command, windows_game_command,
+};
 
 pub const STEAM_APP_ID_FILE: &str = "steam_appid.txt";
 
@@ -50,6 +54,57 @@ impl GameProcess {
             fs::create_dir_all(home)?;
         }
         Self::watch(mac_game_command(game_dir, own_home), notify)
+    }
+
+    pub fn start_wine(
+        wine_steam: &WineSteam,
+        game_dir: &Path,
+        save_dir: &Path,
+        may_write_game_dir: bool,
+        notify: impl Fn() + Send + 'static,
+    ) -> io::Result<Self> {
+        let app_id_file = game_dir.join(STEAM_APP_ID_FILE);
+        // without this the steam api makes steam start its own install
+        if may_write_game_dir && !app_id_file.exists() {
+            fs::write(&app_id_file, format!("{GD_APP_ID}\n"))?;
+        }
+        wine_steam.install_window_fix()?;
+        wine_steam.link_save(save_dir)?;
+        Self::watch(wine_steam.game_command(game_dir), notify)
+    }
+
+    pub fn start_through_steam(
+        wine_steam: &WineSteam,
+        game_dir: &Path,
+        instance: &str,
+        save_dir: &Path,
+        notify: impl Fn() + Send + 'static,
+    ) -> io::Result<Self> {
+        wine_steam.install_window_fix()?;
+        wine_steam.link_save(save_dir)?;
+        wine_steam
+            .steam_library()
+            .put_instance(game_dir, instance)?;
+        wine_steam.ask_steam_to_play()?;
+        let exited = Arc::new(AtomicBool::new(false));
+        let watched = Arc::clone(&exited);
+        thread::spawn(move || {
+            let poll = Duration::from_millis(500);
+            let mut appeared = false;
+            for _ in 0..120 {
+                if is_steam_gd_running() {
+                    appeared = true;
+                    break;
+                }
+                thread::sleep(poll);
+            }
+            while appeared && is_steam_gd_running() {
+                thread::sleep(poll);
+            }
+            watched.store(true, Ordering::Release);
+            notify();
+        });
+        Ok(Self { exited })
     }
 
     fn watch(mut command: Command, notify: impl Fn() + Send + 'static) -> io::Result<Self> {

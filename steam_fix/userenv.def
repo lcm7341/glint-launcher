@@ -1,0 +1,24 @@
+LIBRARY userenv
+EXPORTS
+    CreateAppContainerProfile=userenv_orig.CreateAppContainerProfile @139
+    CreateEnvironmentBlock=userenv_orig.CreateEnvironmentBlock @140
+    DestroyEnvironmentBlock=userenv_orig.DestroyEnvironmentBlock @141
+    EnterCriticalPolicySection=userenv_orig.EnterCriticalPolicySection @142
+    ExpandEnvironmentStringsForUserA=userenv_orig.ExpandEnvironmentStringsForUserA @143
+    ExpandEnvironmentStringsForUserW=userenv_orig.ExpandEnvironmentStringsForUserW @144
+    GetAllUsersProfileDirectoryA=userenv_orig.GetAllUsersProfileDirectoryA @145
+    GetAllUsersProfileDirectoryW=userenv_orig.GetAllUsersProfileDirectoryW @146
+    GetAppliedGPOListW=userenv_orig.GetAppliedGPOListW @147
+    GetDefaultUserProfileDirectoryA=userenv_orig.GetDefaultUserProfileDirectoryA @148
+    GetDefaultUserProfileDirectoryW=userenv_orig.GetDefaultUserProfileDirectoryW @149
+    GetProfilesDirectoryA=userenv_orig.GetProfilesDirectoryA @150
+    GetProfilesDirectoryW=userenv_orig.GetProfilesDirectoryW @151
+    GetProfileType=userenv_orig.GetProfileType @152
+    GetUserProfileDirectoryA=userenv_orig.GetUserProfileDirectoryA @153
+    GetUserProfileDirectoryW=userenv_orig.GetUserProfileDirectoryW @154
+    LeaveCriticalPolicySection=userenv_orig.LeaveCriticalPolicySection @155
+    LoadUserProfileA=userenv_orig.LoadUserProfileA @156
+    LoadUserProfileW=userenv_orig.LoadUserProfileW @157
+    RegisterGPNotification=userenv_orig.RegisterGPNotification @158
+    UnloadUserProfile=userenv_orig.UnloadUserProfile @159
+    UnregisterGPNotification=userenv_orig.UnregisterGPNotification @160

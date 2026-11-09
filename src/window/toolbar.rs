@@ -16,16 +16,16 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
             let button = ui
                 .button(play.label)
                 .primary()
-                .enabled(play.action.is_some())
+                .enabled(play.click.is_some())
                 .width(Fixed(112.0))
                 .show();
             if !play.hint.is_empty() {
                 ui.tooltip_for(&button, play.hint);
             }
             if button.clicked()
-                && let Some(action) = play.action
+                && let Some(click) = play.click
             {
-                window.actions.push(action);
+                window.click(click);
             }
 
             divider(ui);

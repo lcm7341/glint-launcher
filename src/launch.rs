@@ -1,13 +1,24 @@
 mod game_process;
 mod launch_request;
 mod mac_game;
+mod program_overrides;
 mod running_games;
+mod steam_drm;
+mod steam_library;
+mod steam_setup;
+mod steam_window_fix;
 mod windows_game;
 mod windows_running;
+mod wine_fetch;
+mod wine_steam;
 
 pub use game_process::GameProcess;
 pub use launch_request::{LaunchRequest, PROTON_NAME, find_proton, find_runtime};
 pub use mac_game::{MAC_PROGRAM, mac_game_command};
 pub use running_games::{is_running_in, running_game_dirs};
+pub use steam_drm::has_steam_drm;
+pub use steam_setup::{SetupStep, setup_wine};
 pub use windows_game::{WINDOWS_PROGRAM, windows_game_command};
 pub use windows_running::{is_steam_running, windows_gd_running};
+pub use wine_fetch::{INSTALL_ROSETTA, WINE_VERSION, glint_wine, needs_rosetta};
+pub use wine_steam::{WineSteam, wine_steam_running};

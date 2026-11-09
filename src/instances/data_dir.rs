@@ -55,6 +55,10 @@ impl DataDir {
         self.root.join("tools")
     }
 
+    pub fn wine_dir(&self) -> PathBuf {
+        self.root.join("wine")
+    }
+
     pub fn instances_dir(&self) -> PathBuf {
         self.root.join("instances")
     }

@@ -2,12 +2,13 @@ use std::path::PathBuf;
 
 use crate::gd::{GdPlatform, GdVersion, InstanceName};
 use crate::instances::Instance;
+use crate::launch::WINE_VERSION;
 use weft::prelude::{Fixed, Grow, Justify, Ui};
 
 use crate::add_existing::AddExisting;
 use crate::form::{DIALOG_WIDTH, empty_label, field_label, show_field_hint, show_form};
 use crate::geode_index::GeodeIndex;
-use crate::launcher::{Action, Launcher};
+use crate::launcher::{Action, Launcher, is_encrypted_mac_build};
 use crate::sentence::home_relative;
 use crate::window::Window;
 
@@ -25,6 +26,7 @@ pub(crate) enum Dialog {
         name: InstanceName,
         linked: Option<PathBuf>,
     },
+    WindowsSetup(InstanceName),
     AddExisting(AddExisting),
     GeodeIndex(GeodeIndex),
 }
@@ -76,6 +78,7 @@ pub(crate) fn show(ui: &mut Ui, window: &mut Window) {
         } => show_new_instance(ui, window, &mut open, name, platform, release),
         Dialog::Rename { from, name } => show_rename(ui, window, &mut open, from, name),
         Dialog::Delete { name, linked } => show_delete(ui, window, &mut open, name, linked),
+        Dialog::WindowsSetup(name) => show_windows_setup(ui, window, &mut open, name),
         Dialog::AddExisting(add) => crate::add_existing::show(ui, window, &mut open, add),
         Dialog::GeodeIndex(index) => {
             index.show(ui, &mut open, &window.launcher, &mut window.actions);
@@ -149,6 +152,23 @@ fn show_new_instance(
                     }
                     None => {
                         ui.label("None in the catalog yet").muted();
+                    }
+                }
+                let on_mac = launcher.native_platform() == Some(GdPlatform::MacOs);
+                if let Some(version) = release.as_ref()
+                    && on_mac
+                    && is_encrypted_mac_build(version)
+                {
+                    let has_windows = launcher
+                        .catalog()
+                        .find(version, GdPlatform::Windows)
+                        .is_some();
+                    if *platform == GdPlatform::MacOs && has_windows {
+                        *platform = GdPlatform::Windows;
+                    }
+                    if *platform == GdPlatform::Windows {
+                        empty_label(ui);
+                        ui.label("Pre-2.2 plays the Windows build on a Mac").muted();
                     }
                 }
             });
@@ -247,6 +267,31 @@ fn show_delete(
                 }
                 if ui.button("Delete instance").danger().clicked() {
                     window.actions.push(Action::Delete(name.clone()));
+                    ui.close_overlay();
+                }
+            });
+        });
+}
+
+fn show_windows_setup(ui: &mut Ui, window: &mut Window, open: &mut bool, name: &InstanceName) {
+    ui.modal(open)
+        .title("Set up old versions")
+        .style(|style| style.width(Fixed(DIALOG_WIDTH)))
+        .show(|ui| {
+            ui.label(
+                "Pre-2.2 versions run their Windows build on a Mac. Setting up does this once:",
+            );
+            ui.label(format!("1. Downloads Wine {WINE_VERSION} (~215 MB)"));
+            ui.label("2. Installs Steam for Windows inside Wine");
+            ui.label("3. Opens it so you can sign in");
+            ui.label("Takes ~3 GB in Glint's folder. Your normal Steam and saves aren't touched.")
+                .muted();
+            ui.row().justify(Justify::End).gap(8).show(|ui| {
+                if ui.button("Cancel").clicked() {
+                    ui.close_overlay();
+                }
+                if ui.button("Set up").primary().clicked() {
+                    window.actions.push(Action::Play(name.clone()));
                     ui.close_overlay();
                 }
             });

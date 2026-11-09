@@ -76,6 +76,7 @@ pub(crate) struct Launcher {
     steam_folder: Option<PathBuf>,
     proton: Option<PathBuf>,
     runtime: Option<PathBuf>,
+    wine: WineSupport,
     game: Option<Game>,
     found: Vec<FoundInstall>,
     shortcuts: Vec<SteamShortcut>,
@@ -96,6 +97,7 @@ mod mods_cache;
 mod play;
 mod windows_save;
 mod windows_steam;
+mod wine_support;
 
 use depot_fetch::DepotFetch;
 use geode::GeodeTask;
@@ -103,6 +105,9 @@ pub(crate) use geode::ModLoader;
 use mods::ModPicker;
 pub(crate) use mods::{ModChange, ModsState};
 use play::Game;
+pub(crate) use play::is_encrypted_mac_build;
+pub(crate) use wine_support::WindowsSupport;
+use wine_support::WineSupport;
 
 impl Launcher {
     pub(crate) fn new(notify: impl Fn() + Send + Sync + 'static) -> Self {
@@ -131,6 +136,7 @@ impl Launcher {
                 .map(steam_shortcuts)
                 .unwrap_or_default(),
             steam_folder,
+            wine: WineSupport::default(),
             game: None,
             found: Vec::new(),
             geode_task: None,
@@ -252,6 +258,7 @@ impl Launcher {
         self.poll_depot_fetch();
         self.poll_download();
         self.poll_game();
+        self.poll_wine_setup();
         self.poll_geode();
         self.poll_mod_picker();
         self.poll_mods();
