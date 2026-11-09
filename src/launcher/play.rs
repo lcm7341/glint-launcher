@@ -256,7 +256,7 @@ impl Launcher {
         }
         let has_drm = instance.config().platform == GdPlatform::Windows
             && has_steam_drm(&instance.game_dir().join("GeometryDash.exe"));
-        if has_drm && !self.is_windows_on_mac(instance) {
+        if has_drm && !self.is_native(instance) && !self.is_windows_on_mac(instance) {
             return Some(Notice::failed(format!(
                 "{} has Steam DRM and only runs from Steam's own install",
                 instance.config().version
