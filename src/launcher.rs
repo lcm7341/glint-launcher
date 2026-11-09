@@ -73,6 +73,7 @@ pub(crate) struct Launcher {
     download: Option<Download>,
     notify: Notify,
     log: Vec<String>,
+    log_added: usize,
     steam_folder: Option<PathBuf>,
     proton: Option<PathBuf>,
     runtime: Option<PathBuf>,
@@ -129,6 +130,7 @@ impl Launcher {
             download: None,
             notify: Arc::clone(&notify),
             log: Vec::new(),
+            log_added: 0,
             proton: steam_folder.as_deref().and_then(find_proton),
             runtime: steam_folder.as_deref().and_then(find_runtime),
             shortcuts: steam_folder
@@ -247,11 +249,16 @@ impl Launcher {
         &self.log
     }
 
+    pub(crate) fn log_added(&self) -> usize {
+        self.log_added
+    }
+
     fn push_log(&mut self, line: String) {
         if self.log.len() == 2000 {
             self.log.remove(0);
         }
         self.log.push(line);
+        self.log_added += 1;
     }
 
     pub(crate) fn poll(&mut self) {
