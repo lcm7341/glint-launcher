@@ -3,8 +3,9 @@ use std::process::Command;
 
 use crate::gd::GD_APP_ID;
 
-use crate::gd::MAC_PROGRAM;
 use std::{fs, io};
+
+pub(in crate::platform) const MAC_PROGRAM: &str = "Geometry Dash.app/Contents/MacOS/Geometry Dash";
 
 // CFFIXED_USER_HOME moves where gd saves
 pub(in crate::platform) fn command(game_dir: &Path, home: Option<&Path>) -> Command {
