@@ -56,7 +56,7 @@ fn update_button(ui: &mut Ui, window: &mut Window) {
         .primary()
         .height(24)
         .enabled(blocker.is_none())
-        .tooltip(blocker.unwrap_or("Download the new glint and restart"))
+        .tooltip(blocker.unwrap_or("Download the new Glint and restart"))
         .clicked()
     {
         window.actions.push(Action::InstallUpdate);

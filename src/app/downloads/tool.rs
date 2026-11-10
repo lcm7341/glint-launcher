@@ -26,7 +26,7 @@ impl Downloads {
         activity: &mut Activity,
     ) -> Option<Notice> {
         if self.fetching.is_some() {
-            return Some(Notice::failed("Already getting DepotDownloader"));
+            return Some(Notice::failed("DepotDownloader is downloading"));
         }
         let Some(tools_dir) = self.tools_dir.clone() else {
             return Some(Notice::failed("DepotDownloader not found"));

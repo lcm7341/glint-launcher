@@ -64,7 +64,7 @@ fn summary(window: &Window) -> String {
         count => format!("{count} instances"),
     };
     if let Some(playing) = window.app.playing() {
-        summary.push_str(&format!(" · Playing {playing}"));
+        summary.push_str(&format!(" - Playing {playing}"));
     }
     summary
 }

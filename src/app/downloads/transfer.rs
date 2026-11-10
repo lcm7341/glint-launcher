@@ -261,7 +261,7 @@ impl Download {
             Outcome::Failed(
                 self.failure
                     .clone()
-                    .unwrap_or_else(|| "DepotDownloader quit early".to_owned()),
+                    .unwrap_or_else(|| "DepotDownloader quit before finishing".to_owned()),
             )
         }
     }

@@ -14,7 +14,7 @@ pub(super) fn show(ui: &mut Ui, launcher: &App, seen: usize) -> usize {
         .style(|style| style.bg(WELL))
         .show(|ui| {
             if log.is_empty() {
-                ui.label("Nothing yet.").muted();
+                ui.label("Empty.").muted();
                 return;
             }
             let mut list = ui

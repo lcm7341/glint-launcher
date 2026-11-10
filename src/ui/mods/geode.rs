@@ -270,8 +270,8 @@ fn show_pin(
 fn byline(found: &GeodeMod) -> String {
     match found.info.developers.as_slice() {
         [] => found.version.clone(),
-        [only] => format!("{} · {only}", found.version),
-        [first, rest @ ..] => format!("{} · {first} +{}", found.version, rest.len()),
+        [only] => format!("{} - {only}", found.version),
+        [first, rest @ ..] => format!("{} - {first} +{}", found.version, rest.len()),
     }
 }
 

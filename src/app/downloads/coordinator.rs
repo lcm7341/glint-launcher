@@ -71,7 +71,7 @@ impl App {
 
     pub(in crate::app) fn start_download(&mut self, name: &InstanceName) -> Option<Notice> {
         if self.downloads.active().is_some() {
-            return Some(Notice::failed("Already downloading"));
+            return Some(Notice::failed("A download is running"));
         }
         let Some(_program) = self.downloads.program() else {
             return self

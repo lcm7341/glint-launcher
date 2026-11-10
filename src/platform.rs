@@ -112,7 +112,7 @@ pub(crate) fn native_game_command(
     if HostOs::CURRENT.native_game_platform() != Some(build) {
         return Err(io::Error::new(
             io::ErrorKind::Unsupported,
-            "this game build cannot run natively on this host",
+            "this build can't run on this computer",
         ));
     }
     host::native_game_command(game_dir, home)
