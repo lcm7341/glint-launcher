@@ -29,7 +29,7 @@ impl App {
         };
         let game_dir = instance.game_dir();
         let is_before_geode = instance.config().version < first_geode_version();
-        // geode rewrites its settings when the game closes
+        // geode saves settings on close
         let is_geode_setting = matches!(
             change,
             ModChange::SetGeodeEnabled { .. } | ModChange::SetGeodePinned { .. }
@@ -159,7 +159,7 @@ impl App {
 }
 
 fn install_loader(name: &InstanceName, game_dir: &Path, is_before_geode: bool) -> Notice {
-    // 2.2+ is 64-bit, glint loader is 32-bit
+    // glint loader is 32-bit
     if !is_before_geode {
         return Notice::failed("Glint Loader is for pre-2.2");
     }

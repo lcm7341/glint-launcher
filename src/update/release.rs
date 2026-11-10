@@ -4,7 +4,6 @@ use serde_json::Value;
 
 use super::{ASSET, MANIFEST_URL, UpdateError, Version};
 
-/// The newest published release and its file for this computer
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Release {
     pub(crate) version: Version,
@@ -45,7 +44,7 @@ pub(crate) fn fetch_latest() -> Result<Release, UpdateError> {
     parse_release(&body, asset)
 }
 
-/// Each file has its own version, since a release can skip a platform
+/// per-file versions
 pub(crate) fn parse_release(body: &str, asset: &str) -> Result<Release, UpdateError> {
     let json: Value = serde_json::from_str(body)
         .map_err(|error| UpdateError::Api(format!("its answer isn't JSON: {error}")))?;

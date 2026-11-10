@@ -16,7 +16,7 @@ pub(crate) use wine::{
     wine_steam_running,
 };
 
-// without a native override proton loads its own xinput and the loader never runs
+// native override, or proton skips the loader
 fn dll_overrides(game_dir: &std::path::Path) -> String {
     let mut dlls: Vec<String> = std::fs::read_dir(game_dir)
         .map(|entries| {

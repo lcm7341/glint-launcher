@@ -42,7 +42,7 @@ pub(crate) const PROGRAM_OVERRIDES: [ProgramOverride; 2] = [
         dll: "userenv",
         value: "native,builtin",
     },
-    // steam's overlay hook hangs gd's opengl under winehq
+    // overlay hangs opengl under winehq
     ProgramOverride {
         program: "GeometryDash.exe",
         dll: "gameoverlayrenderer",
@@ -73,7 +73,7 @@ impl ProgramOverride {
         let Ok(user_reg) = fs::read_to_string(prefix.join("user.reg")) else {
             return false;
         };
-        // user.reg doubles backslashes in key names
+        // user.reg escapes backslashes
         let key = format!(
             r"[Software\\Wine\\AppDefaults\\{}\\DllOverrides]",
             self.program

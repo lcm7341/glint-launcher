@@ -1,7 +1,5 @@
-/*
-fixes steam's black window under winehq on a mac by adding --in-process-gpu to steamwebhelper's browser process.
-every export forwards to wine's own userenv, copied next to this as userenv_orig.dll.
-*/
+// steamwebhelper --in-process-gpu, fixes the black window under winehq
+// exports forward to userenv_orig.dll
 #include <windows.h>
 #include <winternl.h>
 #include <wchar.h>

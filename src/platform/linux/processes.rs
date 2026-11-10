@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-// under wine the exe shows up as Z:\path\to\GeometryDash.exe
+// wine: Z:\path\to\GeometryDash.exe
 pub(in crate::platform) fn game_dirs() -> io::Result<Vec<PathBuf>> {
     let processes = fs::read_dir("/proc")?;
     let mut found = Vec::new();
@@ -49,7 +49,7 @@ fn unix_parent(exe: &str) -> Option<PathBuf> {
 pub(in crate::platform) fn game_running() -> io::Result<bool> {
     game_dirs().map(|dirs| !dirs.is_empty())
 }
-// the client is ubuntu12_32/steam, flatpak's included; /proc shows flatpak processes too
+// ubuntu12_32/steam, flatpak too
 pub(in crate::platform) fn steam_running() -> io::Result<bool> {
     let processes = fs::read_dir("/proc")?;
     Ok(processes.flatten().any(|process| {

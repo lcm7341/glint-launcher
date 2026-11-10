@@ -45,7 +45,7 @@ impl Updater {
                         *self = Self::Available(release);
                     }
                     Ok(_) => activity.push_log(format!("Glint {current} is up to date")),
-                    // offline is normal, so this only goes in the log
+                    // offline: log only
                     Err(reason) => {
                         activity.push_log(format!("Couldn't check for Glint updates: {reason}"));
                     }
@@ -91,12 +91,10 @@ impl App {
         }
     }
 
-    /// The new glint is running, so this one should close
     pub(crate) fn should_quit(&self) -> bool {
         matches!(self.updater, Updater::Restarting)
     }
 
-    /// Restarting would cut these off
     pub(crate) fn update_blocker(&self) -> Option<&'static str> {
         if self.playing().is_some() {
             Some("Close Geometry Dash first")

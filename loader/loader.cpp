@@ -1,4 +1,4 @@
-// xinput9_1_0.dll proxy that loads glint-mods, for gd before 2.2
+// xinput9_1_0 proxy for glint-mods
 
 #include <windows.h>
 #include <algorithm>
@@ -7,7 +7,7 @@
 
 #define XINPUT_NOT_CONNECTED 1167
 
-// glint looks for this string
+// marker
 extern "C" const char glint_loader[] = "GlintLoader 1";
 
 typedef DWORD(WINAPI* GetStateFunction)(DWORD, void*);
@@ -130,7 +130,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID) {
 	DisableThreadLibraryCalls(module);
 	load_system_xinput();
 	load_chained_loader(module_folder(module));
-	// runs once the loader lock is free
+	// after the loader lock
 	const HANDLE thread = CreateThread(nullptr, 0, load_mods, nullptr, 0, nullptr);
 	if (thread) CloseHandle(thread);
 	return TRUE;

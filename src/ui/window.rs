@@ -146,7 +146,7 @@ impl Window {
     }
 
     fn apply(&mut self, ui: &mut Ui) {
-        // weft reruns the build when layout moves, only apply on the first pass
+        // first pass only
         let mut actions = std::mem::take(&mut self.actions);
         if !actions.is_empty() && !ui.once_per_frame(ui.child_id("apply actions")) {
             actions.clear();

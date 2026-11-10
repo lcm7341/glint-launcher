@@ -8,7 +8,7 @@ pub(crate) use version::Version;
 
 use std::{fmt, io};
 
-/// scripts/release.sh writes this next to the builds, in echo-replays' public/download/glint
+/// written by scripts/release.sh
 pub(crate) const MANIFEST_URL: &str = "https://echogd.com/download/glint/latest.json";
 
 pub(crate) fn current_version() -> Version {
@@ -17,13 +17,12 @@ pub(crate) fn current_version() -> Version {
         .expect("Cargo.toml's version is major.minor.patch")
 }
 
-/// Debug builds are usually `cargo run`, which shouldn't replace itself;
-/// set GLINT_CHECK_UPDATES=1 to check anyway
+/// off in debug builds unless GLINT_CHECK_UPDATES=1
 pub(crate) fn checks_enabled() -> bool {
     !cfg!(debug_assertions) || std::env::var_os("GLINT_CHECK_UPDATES").is_some()
 }
 
-/// The release file built for this computer, named as scripts/release.sh publishes it
+/// release file for this platform
 pub(crate) const ASSET: Option<&str> = if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
     Some("glint-windows-x86_64.exe")
 } else if cfg!(target_os = "macos") {

@@ -31,7 +31,7 @@ pub(crate) const SYSTEM_BUTTONS: bool =
 fn main() {
     let ui_app = weft::App::new()
         .title(TITLE)
-        // has to match glint.desktop for the taskbar icon
+        // matches glint.desktop
         .app_id("glint")
         .icon(ICON_RGBA.to_vec(), ICON_SIDE, ICON_SIDE)
         .decorations(false)

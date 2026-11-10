@@ -21,7 +21,7 @@ pub(super) fn show(ui: &mut Ui, launcher: &App, seen: usize) -> usize {
                 .virtual_list(log.len())
                 .id(ui.child_id("log"))
                 .row_height(18.0);
-            // ScrollTarget::Bottom doesn't work in a virtual list
+            // ScrollTarget::Bottom fails in virtual lists
             if launcher.log_added() != seen {
                 list = list.scroll_to(log.len() - 1);
             }

@@ -45,7 +45,7 @@ pub(crate) fn download(url: &str) -> Result<Vec<u8>, GeodeError> {
         .map_err(|error| GeodeError::Network(error.to_string()))
 }
 
-// the server calls 2.2 2.200
+// server says 2.200 for 2.2
 pub(crate) fn server_gd(gd: &GdVersion) -> String {
     match gd.to_string().as_str() {
         "2.2" => "2.200".to_owned(),

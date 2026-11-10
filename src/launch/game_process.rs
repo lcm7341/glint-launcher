@@ -64,7 +64,7 @@ impl GameProcess {
         notify: impl Fn() + Send + 'static,
     ) -> io::Result<Self> {
         let app_id_file = game_dir.join(STEAM_APP_ID_FILE);
-        // without this the steam api makes steam start its own install
+        // stops steam launching its own install
         if may_write_game_dir && !app_id_file.exists() {
             fs::write(&app_id_file, format!("{GD_APP_ID}\n"))?;
         }

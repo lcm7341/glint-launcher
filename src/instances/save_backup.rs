@@ -11,7 +11,7 @@ const KEPT_DAYS: u128 = 7;
 
 const DAY_MILLIS: u128 = 86_400_000;
 
-/// Skips the copy when the newest backup already matches
+/// skips unchanged saves
 pub fn back_up_save(
     save_dir: &Path,
     backups: &Path,
@@ -30,7 +30,7 @@ pub fn back_up_save(
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |since| since.as_millis());
-    // always after the newest, so names sort oldest first even within one millisecond
+    // keeps names sorted
     let stamp = existing
         .last()
         .and_then(|newest| stamp_of(newest))
@@ -113,7 +113,7 @@ pub fn restore_files(files: &[(std::ffi::OsString, Vec<u8>)], save_dir: &Path) -
     Ok(())
 }
 
-// the rest of the folder is downloaded songs
+// skips songs
 fn save_files(save_dir: &Path) -> io::Result<Vec<PathBuf>> {
     let entries = match fs::read_dir(save_dir) {
         Ok(entries) => entries,
@@ -134,8 +134,7 @@ fn save_files(save_dir: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-/// Also keeps the newest backup from before each version played, so a broken old version
-/// can't push out the last good save, and the newest from each recent day
+/// keeps the newest per version and per recent day
 fn stale_backups(folders: &[PathBuf], now: u128) -> Vec<&PathBuf> {
     let mut versions = Vec::new();
     let mut days = Vec::new();
@@ -175,7 +174,7 @@ fn backup_folders(backups: &Path) -> io::Result<Vec<PathBuf>> {
         .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
         .map(|entry| entry.path())
         .collect();
-    // names start with zero padded milliseconds, so this is oldest first
+    // oldest first
     folders.sort();
     Ok(folders)
 }

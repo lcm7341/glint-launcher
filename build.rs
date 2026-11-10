@@ -34,7 +34,7 @@ fn res_from_ico(ico: &[u8]) -> Option<Vec<u8>> {
     let u16_at = |at: usize| Some(u16::from_le_bytes(ico.get(at..at + 2)?.try_into().ok()?));
     let u32_at = |at: usize| Some(u32::from_le_bytes(ico.get(at..at + 4)?.try_into().ok()?));
     let count = u16_at(4)?;
-    // empty first entry marks the .res as 32-bit
+    // 32-bit .res marker
     let mut res = Vec::new();
     push_entry(&mut res, 0, 0, &[]);
     let mut group = Vec::new();

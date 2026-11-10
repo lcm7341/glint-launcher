@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::gd::{CatalogEntry, GD_APP_ID};
 
-// no password, other programs can read the command line
+// no password: command lines are visible
 #[derive(Clone, PartialEq, Eq)]
 pub struct DownloadRequest {
     entry: CatalogEntry,
@@ -64,7 +64,7 @@ impl DownloadRequest {
             self.entry.depot_id().to_string().into(),
             "-manifest".into(),
             self.entry.manifest.to_string().into(),
-            // -os defaults to the host and there's no linux build
+            // -os defaults to host, no linux build
             "-os".into(),
             self.entry.platform.as_str().into(),
             "-dir".into(),

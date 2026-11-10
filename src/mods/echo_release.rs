@@ -11,7 +11,7 @@ use crate::mods::geode_install::hex;
 use crate::mods::geode_mod_install::{geode_mods_dir, write_geode_mods};
 use crate::mods::geode_server::{download, get_text};
 
-// echogd.com hosts echo itself, it isn't on geode's index
+// not on geode's index
 const GEODE_MANIFEST: &str = "https://echogd.com/download/latest.json";
 const GD21_MANIFEST: &str = "https://echogd.com/echo21/latest.json";
 
@@ -54,7 +54,7 @@ pub fn fetch_echo_releases() -> Result<EchoReleases, String> {
     Ok(EchoReleases { geode, gd21 })
 }
 
-// the newest build sits at the top, builds for other gd versions under their version
+// newest at top, other gd versions nested
 pub(crate) fn parse_geode_manifest(body: &str) -> Vec<(String, EchoRelease)> {
     let Ok(json) = serde_json::from_str::<Value>(body) else {
         return Vec::new();
@@ -101,7 +101,7 @@ pub fn install_echo_geode(game_dir: &Path, release: &EchoRelease) -> Result<(), 
     )
 }
 
-/// Puts the dll where Echo's own loader looks, which loads the newest version there
+/// into .echo for echo's loader
 pub fn install_echo_21(game_dir: &Path, release: &EchoRelease) -> Result<(), GeodeError> {
     let bytes = download(&release.url)?;
     if hex(&Sha256::digest(&bytes)) != release.sha256 {

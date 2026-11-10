@@ -1,4 +1,4 @@
-//! Launch policy shared by the controls and execution. This module performs no I/O.
+//! launch policy, no I/O
 use crate::gd::GdPlatform;
 use crate::platform::HostOs;
 

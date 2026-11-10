@@ -8,7 +8,7 @@ pub const PROTON_NAME: &str = "Proton - Experimental";
 
 pub const RUNTIME_NAME: &str = "SteamLinuxRuntime_4";
 
-// gd quits if the steam api cant find steam
+// steam api needs steam
 #[derive(Clone, PartialEq, Eq)]
 pub struct LaunchRequest {
     proton: PathBuf,
@@ -34,7 +34,7 @@ impl LaunchRequest {
         }
     }
 
-    // outside the runtime fullscreen gd loses focus on every click
+    // fullscreen focus fix
     #[must_use]
     pub fn with_runtime(mut self, runtime: Option<PathBuf>) -> Self {
         self.runtime = runtime;

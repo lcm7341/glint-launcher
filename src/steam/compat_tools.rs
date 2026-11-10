@@ -8,15 +8,15 @@ const RUNTIME_ENTRY_POINT: &str = "_v2-entry-point";
 
 const SYSTEM_TOOLS: &str = "/usr/share/steam/compatibilitytools.d";
 
-// a proton steam would run this app with, and the runtime that proton needs
+// proton and runtime for an app
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct CompatTool {
     pub proton: PathBuf,
     pub runtime: Option<PathBuf>,
 }
 
-// the tool picked for this app in steam's compatibility settings, if it's installed.
-// sharing a prefix with steam but not its proton breaks mods like mega hack
+// steam's compatibility setting
+// mega hack needs the prefix's own proton
 pub fn steam_compat_tool(steam_folder: &Path, app_id: u32) -> Option<CompatTool> {
     let config = fs::read_to_string(steam_folder.join("config").join("config.vdf")).ok()?;
     let name = mapped_tool(&config, app_id)?;
@@ -53,7 +53,7 @@ fn find_tool(steam_folder: &Path, name: &str) -> Option<PathBuf> {
         .filter(|tool| tool.join("proton").is_file())
 }
 
-// steam's own protons only say their version: "proton-9.0-4f" is proton_9, 6.3 is proton_63
+// "proton-9.0-4f" is proton_9, 6.3 is proton_63
 fn builtin_name(tool: &Path) -> Option<String> {
     let version = fs::read_to_string(tool.join("version")).ok()?;
     let release = version.split_whitespace().nth(1)?;
@@ -93,7 +93,7 @@ fn subfolders(folder: &Path) -> Vec<PathBuf> {
         .unwrap_or_default()
 }
 
-// the text between the braces after "key", at any depth
+// braces after "key", any depth
 fn block<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     let quoted = format!("\"{key}\"");
     let mut from = 0;

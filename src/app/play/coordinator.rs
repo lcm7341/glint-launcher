@@ -104,7 +104,7 @@ impl App {
             };
             (started, "as a native app".to_owned())
         } else {
-            // proton's steam.exe needs the real steam running, or gd hangs on load
+            // proton needs steam running
             if let Some(notice) = steam_needed_notice() {
                 return Some(notice);
             }

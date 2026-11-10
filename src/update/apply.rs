@@ -12,10 +12,10 @@ use super::{Release, UpdateError};
 
 const MAX_BYTES: u64 = 200 * 1024 * 1024;
 
-/// Where a macOS update unpacks, next to Glint.app
+/// macos staging folder
 const STAGING: &str = ".glint-update";
 
-/// Downloads the release over the running copy of glint and returns what to relaunch
+/// returns what to relaunch
 pub(crate) fn install(release: &Release) -> Result<PathBuf, UpdateError> {
     let exe = env::current_exe()?;
     let bytes = download(release)?;
@@ -44,7 +44,7 @@ pub(crate) fn relaunch(program: &Path) -> io::Result<()> {
     command.spawn().map(drop)
 }
 
-/// Removes what the last update left behind; windows keeps the old program locked until it exits
+/// windows locks the old exe until exit
 pub(crate) fn clean_up_old_files() {
     let Ok(exe) = env::current_exe() else {
         return;
@@ -101,7 +101,7 @@ fn replace_program(exe: &Path, bytes: &[u8]) -> Result<(), UpdateError> {
         Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error.into()),
         _ => {}
     }
-    // windows can't overwrite a running program, but it can rename one
+    // windows can rename a running exe
     fs::rename(exe, &old)?;
     if let Err(error) = fs::rename(&new, exe) {
         let _ = fs::rename(&old, exe);
@@ -181,7 +181,7 @@ fn make_symlink(target: &[u8], link: &Path) -> Result<(), UpdateError> {
     use std::os::unix::ffi::OsStrExt;
     use std::path::Component;
     let target = Path::new(std::ffi::OsStr::from_bytes(target));
-    // links stay inside the bundle
+    // no links outside the bundle
     let escapes = target.is_absolute()
         || target
             .components()

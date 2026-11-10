@@ -8,7 +8,7 @@ pub struct InstanceConfig {
     pub version: GdVersion,
     pub platform: GdPlatform,
     pub game_folder: Option<PathBuf>,
-    /// Plays with the main GD save instead of its own
+    /// uses the main save
     pub linked: bool,
 }
 
@@ -22,7 +22,7 @@ impl InstanceConfig {
         }
     }
 
-    /// An imported install is the main game, so it starts linked
+    /// imported installs start linked
     #[must_use]
     pub fn with_game_folder(mut self, folder: impl Into<PathBuf>) -> Self {
         self.game_folder = Some(folder.into());
@@ -79,7 +79,7 @@ impl InstanceConfig {
         Ok(Self {
             version: version.ok_or_else(|| missing("version"))?,
             platform: platform.ok_or_else(|| missing("platform"))?,
-            // configs from before linking: imported installs used the main save
+            // old configs: imported means linked
             linked: linked.unwrap_or(game_folder.is_some()),
             game_folder,
         })

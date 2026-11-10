@@ -26,7 +26,7 @@ pub(in crate::platform) fn command(program: &str, pick: PickKind, start: &Path) 
             }
         }
     } else {
-        // Zenity expects a filename option, including for a directory's initial location.
+        // zenity needs a filename
         let mut filename = std::ffi::OsString::from("--filename=");
         filename.push(start);
         filename.push("/");

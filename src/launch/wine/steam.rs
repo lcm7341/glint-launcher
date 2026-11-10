@@ -52,7 +52,7 @@ impl WineSteam {
         let mut wineboot = self.wine_command(parent);
         wineboot
             .args(["wineboot", "-u"])
-            // skip the wine mono/gecko prompt
+            // skip mono/gecko prompt
             .env("WINEDLLOVERRIDES", "mscoree,mshtml=");
         run_to_end(wineboot, "wineboot")?;
         let mut wineserver = Command::new(self.wine.with_file_name("wineserver"));
@@ -94,7 +94,7 @@ impl WineSteam {
         Ok(())
     }
 
-    // ActiveUser is 0 until someone signs in
+    // 0 until sign-in
     pub fn is_steam_signed_in(&self) -> bool {
         let mut query = self.wine_command(&self.prefix);
         query.args([
@@ -134,7 +134,7 @@ impl WineSteam {
             let mut shutdown = wine_steam.wine_command(&wine_steam.prefix.join(STEAM_DIR));
             shutdown.arg(STEAM_EXE_WINDOWS).arg("-shutdown");
             let _ = run_to_end(shutdown, "Steam for Windows");
-            // steam takes a few secs to close
+            // steam closes slowly
             for _ in 0..60 {
                 if !wine_steam_running() {
                     break;
@@ -201,7 +201,7 @@ impl WineSteam {
         command
             .current_dir(working_dir)
             .env("WINEPREFIX", &self.prefix)
-            // wine's fixme spam fills the pipe
+            // drain fixme spam
             .env("WINEDEBUG", "-all");
         command
     }

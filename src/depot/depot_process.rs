@@ -17,7 +17,7 @@ pub enum DepotUpdate {
 
 type Notify = Arc<dyn Fn() + Send + Sync>;
 
-// stdin is closed so a password prompt doesn't hang
+// no stdin: password prompts can't hang
 pub struct DepotProcess {
     updates: Receiver<DepotUpdate>,
     child: Arc<Mutex<Child>>,
@@ -109,7 +109,7 @@ fn forward_lines(output: impl Read, sender: &Sender<DepotUpdate>, notify: &dyn F
     }
 }
 
-// piped output on windows is in the oem code page, qr blocks come through as 0xDB
+// windows pipes use the oem code page, qr blocks are 0xDB
 fn to_text(line: &[u8]) -> Cow<'_, str> {
     if let Ok(text) = str::from_utf8(line) {
         return Cow::Borrowed(text);

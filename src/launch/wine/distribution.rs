@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 
-// winehq 9 steam rejects its own window (0x3008)
+// winehq 9 steam window bug (0x3008)
 pub const WINE_VERSION: &str = "11.21";
 
 const WINE_URL: &str = "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.21/wine-devel-11.21-osx64.tar.xz";

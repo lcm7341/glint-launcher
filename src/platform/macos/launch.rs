@@ -7,7 +7,7 @@ use std::{fs, io};
 
 pub(in crate::platform) const MAC_PROGRAM: &str = "Geometry Dash.app/Contents/MacOS/Geometry Dash";
 
-// CFFIXED_USER_HOME moves where gd saves
+// CFFIXED_USER_HOME sets the save folder
 pub(in crate::platform) fn command(game_dir: &Path, home: Option<&Path>) -> Command {
     let mut command = Command::new(game_dir.join(MAC_PROGRAM));
     command

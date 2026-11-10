@@ -22,7 +22,7 @@ pub fn has_mega_hack(game_dir: &Path) -> bool {
 
 pub const MEGA_HACK_MODS_FOLDER: &str = "extensions";
 
-// glint loader loads its mods with mega hack on or off, so it wins when both are there
+// glint loader works with mega hack disabled
 pub fn find_mods_folder(game_dir: &Path) -> Option<ModsFolder> {
     let (loader, folder) = if has_glint_loader(game_dir) {
         (DllLoader::GlintLoader, GLINT_MODS_FOLDER)

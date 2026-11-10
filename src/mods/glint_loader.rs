@@ -11,7 +11,7 @@ const LOADER_FILE: &str = "XInput9_1_0.dll";
 
 const BACKUP_FILE: &str = "XInput9_1_0.dll.glint-backup";
 
-// a turned off mega hack loader, which glint loader chains once it's turned back on
+// disabled mega hack loader
 const OFF_LOADER: &str = "XInput9_1_0.dll.disabled";
 const OFF_BACKUP: &str = "XInput9_1_0.dll.glint-backup.disabled";
 
@@ -48,7 +48,7 @@ pub fn install_glint_loader(game_dir: &Path) -> Result<(), ModError> {
     Ok(())
 }
 
-/// Moves dll mods, on or off, and the extensions switch's marker between folders
+/// dlls and the extensions marker
 pub fn move_dll_mods(from: &Path, to: &Path) -> Result<(), ModError> {
     let entries = match fs::read_dir(from) {
         Ok(entries) => entries,

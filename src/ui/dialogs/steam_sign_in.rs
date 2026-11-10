@@ -64,7 +64,7 @@ fn draw_code(ui: &mut Ui, modules: &[Vec<bool>]) {
                 Rect::from_min_size(vec2(0.0, 0.0), rect.size()),
                 Color::WHITE,
             );
-            // whole pixels per module or you get seams
+            // whole pixels, no seams
             let module = (rect.width() / count as f32).floor().max(1.0);
             let offset = ((rect.width() - module * count as f32) / 2.0).floor();
             for (row, cells) in modules.iter().enumerate() {

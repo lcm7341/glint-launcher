@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-// mega hack writes crashlogs/, geode geode/crashlogs/, echo for 2.1 .echo/crashlogs/
+// mega hack, geode, echo 2.1
 const CRASH_LOG_FOLDERS: [&str; 3] = ["crashlogs", "geode/crashlogs", ".echo/crashlogs"];
 
 pub(super) fn new_crash_log(game_dir: &Path, since: SystemTime) -> Option<PathBuf> {

@@ -8,7 +8,7 @@ use crate::instances::SaveSwapError;
 use crate::instances::swap_lock::{SwapLock, SwapState};
 use crate::paths::DataDir;
 
-// only renames so the save is never half moved
+// renames only
 #[derive(Clone, PartialEq, Eq)]
 pub struct SaveSwap {
     usual: PathBuf,

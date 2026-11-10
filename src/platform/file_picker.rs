@@ -48,7 +48,7 @@ impl FilePicker {
         command.stdin(Stdio::null()).stderr(Stdio::null());
         self.picking = Some(Job::spawn(&notify, move || {
             let output = command.output()?;
-            // Native dialogs use a nonzero status when the user cancels.
+            // cancel exits nonzero
             if !output.status.success() {
                 return Ok(None);
             }
