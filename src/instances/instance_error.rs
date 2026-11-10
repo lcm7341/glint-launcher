@@ -2,7 +2,8 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
-use crate::gd::{InstanceName, ParseError};
+use crate::instances::InstanceName;
+use crate::parse_error::ParseError;
 
 pub enum InstanceError {
     AlreadyExists(InstanceName),

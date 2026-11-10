@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::gd::{InstanceConfig, InstanceName};
+use crate::instances::{InstanceConfig, InstanceName};
 
 use crate::instances::GameFiles;
 use crate::instances::game_files::INCOMPLETE_MARKER;

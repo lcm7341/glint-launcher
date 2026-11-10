@@ -2,11 +2,11 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::gd::InstanceName;
+use crate::instances::InstanceName;
 
-use crate::instances::DataDir;
 use crate::instances::SaveSwapError;
 use crate::instances::swap_lock::{SwapLock, SwapState};
+use crate::paths::DataDir;
 
 // only renames so the save is never half moved
 #[derive(Clone, PartialEq, Eq)]
@@ -193,3 +193,4 @@ fn io_error(action: &'static str, path: impl Into<PathBuf>, source: io::Error) -
         source,
     }
 }
+

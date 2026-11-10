@@ -1,6 +1,7 @@
 use std::fmt;
 
-use crate::gd::{GdPlatform, GdVersion, ParseError};
+use crate::gd::{GdPlatform, GdVersion};
+use crate::parse_error::ParseError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CatalogError {
