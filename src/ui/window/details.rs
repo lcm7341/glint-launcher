@@ -1,8 +1,9 @@
+use crate::gd::{OLD_ON_NEW_SAVE, is_before_2_2};
 use crate::instances::{GameFiles, Instance};
 use weft::prelude::{Align, Fixed, FontWeight, Grow, Insets, Justify, Ui};
 
 use super::Window;
-use crate::app::{Action, ModLoader};
+use crate::app::{Action, ModLoader, SaveMode};
 use crate::ui::dialogs::Dialog;
 use crate::ui::icons::{Icon, icon_button};
 use crate::ui::mod_picker::ModPicker;
@@ -109,9 +110,9 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
     let name = instance.name().clone();
     let files = match (window.is_downloading(instance), instance.game_files()) {
         (true, _) => "Downloading",
-        (false, GameFiles::Present) if instance.is_linked() => "Linked install",
+        (false, GameFiles::Present) if instance.is_imported() => "Imported install",
         (false, GameFiles::Present) => "Installed",
-        (false, GameFiles::Incomplete) => "Partly downloaded",
+        (false, GameFiles::Incomplete) => "Unfinished download",
         (false, GameFiles::Missing) => "Not downloaded",
     };
     field(ui, "Files", files, None, &mut window.actions);
@@ -122,30 +123,24 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
         Some(("Open", Action::OpenFolder(name.clone()))),
         &mut window.actions,
     );
-    let save_path = window.app.gd_save_dir(instance);
-    let save_dir = short_save_dir(&window.app.short_path(&save_path));
-    let source = window.app.describe_save(instance);
-    field_with_tooltip(
-        ui,
-        "Save",
-        &save_dir,
-        &format!("{}\n{source}", save_path.display()),
-        Some(("Open", Action::OpenSaveFolder(name.clone()))),
-        &mut window.actions,
-    );
-    let loader = if instance.config().version >= "2.2".parse().expect("a fixed version parses") {
-        match window.app.mod_loader(instance) {
-            ModLoader::Geode if instance.is_linked() => Some(("Geode", None)),
-            ModLoader::Geode => Some(("Geode", Some(("Remove Geode", Action::RemoveGeode(name))))),
-            ModLoader::InstallingGeode => Some(("Installing Geode…", None)),
-            ModLoader::GeodeAvailable => Some((
-                "No mod loader",
-                Some(("Install Geode", Action::InstallGeode(name))),
-            )),
-            ModLoader::None => Some(("No mod loader", None)),
-        }
-    } else {
-        None
+    show_save(ui, window, instance);
+    show_link(ui, window, instance);
+    let is_geode_era = instance.config().version >= "2.2".parse().expect("a fixed version parses");
+    let (title, status, loader_action) = match window.app.mod_loader(instance) {
+        _ if !is_geode_era => ("Mods", None, None),
+        ModLoader::Geode if instance.is_imported() => ("Geode Mods", None, None),
+        ModLoader::Geode => (
+            "Geode Mods",
+            None,
+            Some(("Remove Geode", Action::RemoveGeode(name))),
+        ),
+        ModLoader::InstallingGeode => ("Mods", Some("Installing Geode…"), None),
+        ModLoader::GeodeAvailable => (
+            "Mods",
+            Some("No mod loader"),
+            Some(("Install Geode", Action::InstallGeode(name))),
+        ),
+        ModLoader::None => ("Mods", Some("No mod loader"), None),
     };
     let can_browse = window.app.mod_loader(instance) == ModLoader::Geode;
     let mut browse = false;
@@ -156,18 +151,19 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
         .align(Align::Center)
         .style(|style| style.min_height(28.0))
         .show(|ui| {
-            ui.label("Mods")
+            ui.label(title)
                 .wrap(false)
                 .style(|style| style.weight(FontWeight::SEMI_BOLD).color(TEXT));
-            if let Some((text, action)) = loader {
-                ui.label(format!("· {text}"))
+            if let Some(status) = status {
+                ui.label(status)
                     .wrap(false)
-                    .style(|style| style.color(MUTED).width(Grow(1)));
-                if let Some((label, action)) = action
-                    && ui.button(label).height(24).clicked()
-                {
-                    window.actions.push(action);
-                }
+                    .style(|style| style.color(MUTED));
+            }
+            ui.spacer();
+            if let Some((label, action)) = loader_action
+                && ui.button(label).height(24).clicked()
+            {
+                window.actions.push(action);
             }
             if can_browse {
                 browse = ui
@@ -199,6 +195,117 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
             &mut window.actions,
             &mut window.mod_picker,
         );
+    });
+}
+
+fn show_save(ui: &mut Ui, window: &mut Window, instance: &Instance) {
+    let name = instance.name().clone();
+    let save_path = window.app.gd_save_dir(instance);
+    let save_dir = short_save_dir(&window.app.short_path(&save_path));
+    let tooltip = format!(
+        "{}\n{}",
+        save_path.display(),
+        window.app.describe_save(instance)
+    );
+    let has_backups = !window.app.save_backups(&name).is_empty();
+    ui.push_id("Save", |ui| {
+        ui.row()
+            .width(Grow(1))
+            .gap(8)
+            .align(Align::Center)
+            .style(|style| style.min_height(28.0))
+            .show(|ui| {
+                field_label(ui, "Save");
+                ui.label(save_dir)
+                    .truncate()
+                    .tooltip(tooltip)
+                    .style(|style| style.color(TEXT).width(Grow(1)));
+                if ui
+                    .button("Backups…")
+                    .height(24)
+                    .enabled(has_backups)
+                    .tooltip("Glint backs up the save before every launch")
+                    .clicked()
+                {
+                    window.dialog = Some(Dialog::Backups(name.clone()));
+                }
+                if ui.button("Open").height(24).clicked() {
+                    window.actions.push(Action::OpenSaveFolder(name.clone()));
+                }
+            });
+    });
+}
+
+fn show_link(ui: &mut Ui, window: &mut Window, instance: &Instance) {
+    let config = instance.config();
+    let linked = window.app.save_mode(instance) == SaveMode::Linked;
+    let blocker = window.app.link_blocker(config.platform, &config.version);
+    let value = match (linked, &blocker) {
+        (true, _) => "Yes".to_owned(),
+        (false, Some(reason)) => format!("No - {reason}"),
+        (false, None) => "No".to_owned(),
+    };
+    let about = if linked {
+        "Uses your main save"
+    } else {
+        "Has its own save"
+    };
+    let mut copy_tip =
+        "Replaces its own save with a copy of your main save. Glint backs up its own first"
+            .to_owned();
+    if is_before_2_2(&config.version) {
+        copy_tip.push_str(&format!(". {OLD_ON_NEW_SAVE}"));
+    }
+    let can_change = window.can_change(instance);
+    let can_copy = window.app.can_copy_main_save(instance);
+    let name = instance.name().clone();
+    ui.push_id("Linked", |ui| {
+        ui.row()
+            .width(Grow(1))
+            .gap(8)
+            .align(Align::Center)
+            .style(|style| style.min_height(28.0))
+            .show(|ui| {
+                field_label(ui, "Linked");
+                ui.label(value)
+                    .truncate()
+                    .tooltip(about)
+                    .style(|style| style.color(TEXT).width(Grow(1)));
+                if can_copy
+                    && ui
+                        .button("Copy main save")
+                        .height(24)
+                        .enabled(can_change)
+                        .tooltip(copy_tip)
+                        .clicked()
+                {
+                    window.actions.push(Action::CopyMainSave(name.clone()));
+                }
+                // a link that a newer main save blocks can still be cleared
+                let (button, tip, link) = if instance.is_linked() {
+                    ("Unlink", "Use its own save", false)
+                } else {
+                    (
+                        "Link",
+                        "Use your main save. Its own stays in its folder",
+                        true,
+                    )
+                };
+                let shown = instance.is_linked() || blocker.is_none();
+                if shown
+                    && ui
+                        .button(button)
+                        .height(24)
+                        .enabled(can_change)
+                        .tooltip(tip)
+                        .clicked()
+                {
+                    window.actions.push(Action::SetLinked {
+                        instance: name.clone(),
+                        linked: link,
+                    });
+                }
+            });
     });
 }
 
@@ -268,7 +375,7 @@ fn show_empty(ui: &mut Ui) {
         .justify(Justify::Center)
         .gap(6)
         .show(|ui| {
-            ui.label("No instances yet")
+            ui.label("No instances")
                 .font_size(15)
                 .style(|style| style.weight(FontWeight::SEMI_BOLD).color(TEXT));
             ui.label("Make one with New… or add an existing GD folder.")

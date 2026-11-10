@@ -4,7 +4,7 @@ use crate::gd::GdPlatform;
 use crate::instances::{Instance, SaveSwap};
 use crate::platform::native_game_running;
 
-use super::{Action, App, Notice};
+use super::{Action, App, Notice, SaveMode};
 
 impl App {
     pub(crate) fn finish_save_swap(&mut self) {
@@ -41,10 +41,10 @@ impl App {
         }
     }
 
-    pub(super) fn swap_save_in(&self, instance: &Instance) -> Result<bool, String> {
+    pub(super) fn swap_save_in(&self, instance: &Instance, mode: SaveMode) -> Result<bool, String> {
         let swap = self.save_swap();
         let is_needed =
-            !instance.is_linked() || swap.as_ref().is_some_and(SaveSwap::has_unfinished);
+            mode != SaveMode::Linked || swap.as_ref().is_some_and(SaveSwap::has_unfinished);
         if !is_needed {
             return Ok(false);
         }
@@ -54,15 +54,15 @@ impl App {
         match native_game_running() {
             Ok(false) => {}
             Ok(true) => {
-                return Err("GD is already open".to_owned());
+                return Err("GD is open".to_owned());
             }
             Err(error) => {
                 return Err(format!("Couldn't check if GD is open: {error}"));
             }
         }
-        if instance.is_linked() {
-            swap.restore()
-                .map_err(|error| format!("Couldn't put your usual save back: {error}"))?;
+        swap.restore()
+            .map_err(|error| format!("Couldn't put your usual save back: {error}"))?;
+        if mode == SaveMode::Linked {
             return Ok(false);
         }
         swap.swap_in(instance.name(), &instance.save_dir())
@@ -71,7 +71,10 @@ impl App {
     }
 
     pub(super) fn refuses_while_playing(&mut self, action: &Action) -> bool {
-        let (Action::Rename { from: name, .. } | Action::Delete(name)) = action else {
+        let (Action::Rename { from: name, .. }
+        | Action::Delete(name)
+        | Action::SetLinked { instance: name, .. }) = action
+        else {
             return false;
         };
         if self.playing() != Some(name) {

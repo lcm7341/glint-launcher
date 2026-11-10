@@ -36,6 +36,21 @@ impl DataDir {
         self.root.join("save-backups")
     }
 
+    pub fn main_save_backups_dir(&self) -> PathBuf {
+        self.save_backups_dir().join("auto").join("main-save")
+    }
+
+    pub fn own_save_backups_dir(&self, name: &InstanceName) -> PathBuf {
+        self.save_backups_dir()
+            .join("auto")
+            .join("instances")
+            .join(name.as_str())
+    }
+
+    pub fn main_save_version_path(&self) -> PathBuf {
+        self.root.join("main-save-version")
+    }
+
     pub fn tools_dir(&self) -> PathBuf {
         self.root.join("tools")
     }

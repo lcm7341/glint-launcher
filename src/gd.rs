@@ -26,5 +26,12 @@ pub const WINDOWS_PROGRAM: &str = "GeometryDash.exe";
 
 // drm wrapped: 1.9, 1.92, 2.113. not from 2.2074 on
 pub(crate) fn is_encrypted_mac_build(version: &GdVersion) -> bool {
+    is_before_2_2(version)
+}
+
+pub(crate) fn is_before_2_2(version: &GdVersion) -> bool {
     *version < "2.2".parse().expect("a fixed version parses")
 }
+
+pub(crate) const OLD_ON_NEW_SAVE: &str =
+    "2.1 and older can crash on a 2.2 save or stop taking clicks, more so with Mega Hack";
