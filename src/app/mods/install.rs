@@ -2,8 +2,8 @@ use crate::gd::GdPlatform;
 use crate::instances::InstanceName;
 use crate::instances::{GameFiles, Instance};
 use crate::mods::{
-    ECHO_ID, fetch_latest_geode, has_geode, install_echo_21, install_echo_geode, install_geode,
-    install_geode_mod, remove_geode,
+    ECHO_ID, fetch_latest_geode, find_echo, has_geode, install_echo_21, install_echo_geode,
+    install_geode, install_geode_mod, install_glint_loader, remove_geode,
 };
 
 use super::{EchoOffer, ModContext, ModManager};
@@ -157,14 +157,18 @@ impl ModManager {
         let label = format!("Echo v{}", release.version);
         let installed = label.clone();
         let job = Job::spawn(context.notify, move || {
-            let installing = if offer.is_gd21 {
-                install_echo_21(&game_dir, &release)
-            } else {
-                install_echo_geode(&game_dir, &release)
-            };
-            installing
-                .map(|()| installed)
-                .map_err(|error| error.to_string())
+            if !offer.is_gd21 {
+                return install_echo_geode(&game_dir, &release)
+                    .map(|()| installed)
+                    .map_err(|error| error.to_string());
+            }
+            install_echo_21(&game_dir, &release).map_err(|error| error.to_string())?;
+            // stands in for echo's loader
+            if find_echo(&game_dir).is_some_and(|echo| !echo.has_loader) {
+                install_glint_loader(&game_dir).map_err(|error| error.to_string())?;
+                return Ok(format!("{installed}, with Glint Loader"));
+            }
+            Ok(installed)
         });
         activity.push_log(format!(
             "Installing {label} from echogd.com into \"{name}\""

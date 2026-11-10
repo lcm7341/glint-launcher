@@ -68,6 +68,9 @@ impl App {
         if let Err(notice) = self.back_up_save_for(&instance) {
             return Some(notice);
         }
+        if let Err(notice) = self.ensure_echo_loads(&instance) {
+            return Some(notice);
+        }
         let instance = &instance;
         let mode = self.save_mode(instance);
         let notify = Arc::clone(&self.notify);

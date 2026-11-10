@@ -8,7 +8,7 @@
 #define XINPUT_NOT_CONNECTED 1167
 
 // marker
-extern "C" const char glint_loader[] = "GlintLoader 1";
+extern "C" const char glint_loader[] = "GlintLoader 2";
 
 typedef DWORD(WINAPI* GetStateFunction)(DWORD, void*);
 typedef DWORD(WINAPI* SetStateFunction)(DWORD, void*);
@@ -105,12 +105,63 @@ private:
 	HANDLE file = INVALID_HANDLE_VALUE;
 };
 
+static bool file_contains(const std::wstring& path, const std::string& needle) {
+	const HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+	if (file == INVALID_HANDLE_VALUE) return false;
+	std::string bytes;
+	char buffer[65536];
+	DWORD read = 0;
+	while (ReadFile(file, buffer, sizeof buffer, &read, nullptr) && read > 0) bytes.append(buffer, read);
+	CloseHandle(file);
+	return bytes.find(needle) != std::string::npos;
+}
+
+// "Echo v1.6.dll" -> {1, 6}
+static std::vector<int> echo_version(const std::wstring& name) {
+	const size_t prefix = 6;
+	if (name.size() <= prefix + 4 || name.compare(0, prefix, L"Echo v") != 0) return {};
+	const std::wstring digits = name.substr(prefix, name.size() - prefix - 4);
+	std::vector<int> parts;
+	size_t start = 0;
+	while (true) {
+		const size_t dot = digits.find(L'.', start);
+		const std::wstring part = digits.substr(start, dot == std::wstring::npos ? std::wstring::npos : dot - start);
+		if (part.empty() || part.size() > 6 || part.find_first_not_of(L"0123456789") != std::wstring::npos) return {};
+		parts.push_back(std::stoi(part));
+		if (dot == std::wstring::npos) return parts;
+		start = dot + 1;
+	}
+}
+
+// echo 2.1, unless echo's loader is chained
+static void load_echo(const std::wstring& game_folder, Log& log) {
+	if (file_contains(game_folder + L"\\XInput9_1_0.dll.glint-backup", "echo_auto_loader")) return;
+	const std::wstring echo_folder = game_folder + L"\\.echo\\";
+	std::wstring newest;
+	std::vector<int> newest_version;
+	for (const std::wstring& name : mod_names(echo_folder)) {
+		const std::vector<int> version = echo_version(name);
+		if (!version.empty() && version > newest_version) {
+			newest = name;
+			newest_version = version;
+		}
+	}
+	if (newest.empty()) return;
+	if (GetModuleHandleW(newest.c_str())) {
+		log.line(L"Skipped " + newest + L": already loaded");
+		return;
+	}
+	if (LoadLibraryW((echo_folder + newest).c_str())) log.line(L"Loaded " + newest);
+	else log.line(L"Couldn't load " + newest + L": error " + std::to_wstring(GetLastError()));
+}
+
 static DWORD WINAPI load_mods(void*) {
 	const std::wstring game_folder = module_folder(g_self);
 	if (game_folder.empty()) return 0;
 	const std::wstring mods_folder = game_folder + L"\\glint-mods\\";
-	if (!file_exists(mods_folder)) return 0;
+	CreateDirectoryW(mods_folder.c_str(), nullptr);
 	Log log(mods_folder + L"glint-loader.log");
+	load_echo(game_folder, log);
 	const std::vector<std::wstring> names = mod_names(mods_folder);
 	if (names.empty()) log.line(L"No mods to load");
 	for (const std::wstring& name : names) {

@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::mods::{DllMod, list_dll_mods};
+use crate::mods::{DllMod, has_current_glint_loader, list_dll_mods};
 
 const MARKER: &[u8] = b"echo_auto_loader";
 
@@ -24,7 +24,7 @@ pub fn find_echo(game_dir: &Path) -> Option<EchoMod> {
         .1;
     Some(EchoMod {
         dll,
-        has_loader: has_echo_loader(game_dir),
+        has_loader: has_echo_loader(game_dir) || has_current_glint_loader(game_dir),
     })
 }
 

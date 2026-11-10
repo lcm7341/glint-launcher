@@ -31,7 +31,8 @@ pub use geode_mods::{
 };
 pub use geode_release::{GeodeRelease, fetch_latest_geode};
 pub use glint_loader::{
-    GLINT_MODS_FOLDER, has_glint_loader, install_glint_loader, move_dll_mods, remove_glint_loader,
+    GLINT_MODS_FOLDER, has_current_glint_loader, has_glint_loader, has_taken_over_extensions,
+    install_glint_loader, remove_glint_loader, take_over_extensions,
 };
 pub use mega_hack::{
     MegaHackLoader, extensions_enabled, find_mega_hack_loader, set_extensions_enabled,

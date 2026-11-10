@@ -141,7 +141,9 @@ fn show_echo(
             }));
         }
         if !echo.has_loader {
-            ui.label("Echo's loader is missing.").muted().font_size(12);
+            ui.label("Glint Loader will load Echo when the game starts.")
+                .muted()
+                .font_size(12);
         }
     });
 }
@@ -162,10 +164,11 @@ fn show_echo_21_offer(
     let version = &offer.release.version;
     let installing = launcher.installing_mod(instance.name()) == Some(ECHO_ID);
     let label = match (installing, offer.state) {
-        (true, _) => "Installing Echo…".to_owned(),
-        (false, EchoState::Update) => format!("Update Echo to v{version}"),
-        (false, _) => format!("Install Echo v{version}"),
+        (true, _) => "Installing Echo…",
+        (false, EchoState::Update) => "Update Echo",
+        (false, _) => "Get Echo",
     };
+    let about = format!("Downloads Echo v{version} from echogd.com");
     let blocker = if launcher.is_game_open(instance) {
         Some("Close the game first")
     } else if launcher.installing_geode() {
@@ -175,8 +178,10 @@ fn show_echo_21_offer(
     };
     let clicked = ui
         .button(label)
+        .muted()
+        .height(22)
         .enabled(!installing && blocker.is_none())
-        .tooltip(blocker.unwrap_or("Downloads Echo from echogd.com"))
+        .tooltip(blocker.unwrap_or(&about))
         .clicked();
     if clicked {
         actions.push(change(ModChange::InstallEcho));

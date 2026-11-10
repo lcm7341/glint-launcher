@@ -5,12 +5,10 @@ use crate::instances::Instance;
 use crate::instances::InstanceName;
 use crate::mods::{
     DllMod, add_dll_mod, add_geode_mod_file, echo_folder, find_mods_folder, has_geode,
-    has_mega_hack, install_glint_loader, remove_dll_mod, remove_glint_loader, set_dll_mod_enabled,
+    install_glint_loader, remove_dll_mod, remove_glint_loader, set_dll_mod_enabled,
     set_extensions_enabled, set_geode_mod_enabled, set_geode_mod_pinned, set_mega_hack_enabled,
 };
-use crate::mods::{
-    EchoMod, GLINT_MODS_FOLDER, MEGA_HACK_MODS_FOLDER, MegaHackLoader, ModError, move_dll_mods,
-};
+use crate::mods::{EchoMod, MegaHackLoader, find_echo, has_mega_hack, take_over_extensions};
 use crate::platform::native_game_running;
 use std::fs;
 use std::path::Path;
@@ -77,7 +75,7 @@ impl App {
             (ModChange::InstallGlintLoader, _) => {
                 Some(install_loader(name, &game_dir, is_before_geode))
             }
-            (ModChange::RemoveGlintLoader, _) => Some(match remove_loader(&game_dir) {
+            (ModChange::RemoveGlintLoader, _) => Some(match remove_glint_loader(&game_dir) {
                 Ok(()) => Notice::done(format!("Removed Glint Loader from \"{name}\"")),
                 Err(error) => Notice::failed(format!("Couldn't remove Glint Loader: {error}")),
             }),
@@ -168,10 +166,7 @@ fn install_loader(name: &InstanceName, game_dir: &Path, is_before_geode: bool) -
     }
     let installed = install_glint_loader(game_dir).and_then(|()| {
         if has_mega_hack(game_dir) {
-            move_dll_mods(
-                &game_dir.join(MEGA_HACK_MODS_FOLDER),
-                &game_dir.join(GLINT_MODS_FOLDER),
-            )
+            take_over_extensions(game_dir)
         } else {
             Ok(())
         }
@@ -182,17 +177,28 @@ fn install_loader(name: &InstanceName, game_dir: &Path, is_before_geode: bool) -
     }
 }
 
-fn remove_loader(game_dir: &Path) -> Result<(), ModError> {
-    if has_mega_hack(game_dir) {
-        move_dll_mods(
-            &game_dir.join(GLINT_MODS_FOLDER),
-            &game_dir.join(MEGA_HACK_MODS_FOLDER),
-        )?;
-    }
-    remove_glint_loader(game_dir)
-}
-
 impl App {
+    /// glint loader stands in for echo's
+    pub(in crate::app) fn ensure_echo_loads(&mut self, instance: &Instance) -> Result<(), Notice> {
+        let game_dir = instance.game_dir();
+        let needs_loader =
+            find_echo(&game_dir).is_some_and(|echo| echo.dll.is_enabled && !echo.has_loader);
+        if !needs_loader || instance.config().version >= first_geode_version() {
+            return Ok(());
+        }
+        install_glint_loader(&game_dir).map_err(|error| {
+            Notice::failed(format!(
+                "Didn't start, couldn't set up Glint Loader for Echo: {error}"
+            ))
+        })?;
+        self.push_log(format!(
+            "Installed Glint Loader into \"{}\" so Echo loads",
+            instance.name()
+        ));
+        self.forget_mods();
+        Ok(())
+    }
+
     pub(in crate::app) fn forget_mods(&mut self) {
         self.mods.invalidate();
     }

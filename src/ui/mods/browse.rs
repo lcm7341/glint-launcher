@@ -212,7 +212,9 @@ impl GeodeIndex {
         instance: &Instance,
         actions: &mut Vec<Action>,
     ) {
-        let matches = self.searched.is_empty() || "echo".contains(&self.searched.to_lowercase());
+        let searched = self.searched.to_lowercase();
+        let matches =
+            !searched.is_empty() && ("echo".contains(&searched) || searched.contains("echo"));
         let Some(offer) = launcher.echo_offer(instance).filter(|_| matches) else {
             return;
         };

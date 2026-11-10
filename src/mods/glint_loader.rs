@@ -2,8 +2,8 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 
-use crate::mods::ModError;
 use crate::mods::mega_hack::EXTENSIONS_OFF;
+use crate::mods::{MEGA_HACK_MODS_FOLDER, ModError};
 
 const GLINT_LOADER: &[u8] = include_bytes!("../../loader/out/XInput9_1_0.dll");
 
@@ -24,6 +24,12 @@ pub fn has_glint_loader(game_dir: &Path) -> bool {
         .is_ok_and(|bytes| bytes.windows(MARKER.len()).any(|window| window == MARKER))
 }
 
+/// loads echo for 2.1 too
+pub fn has_current_glint_loader(game_dir: &Path) -> bool {
+    fs::read(game_dir.join(LOADER_FILE)).is_ok_and(|bytes| bytes == GLINT_LOADER)
+}
+
+/// also updates an older glint loader
 pub fn install_glint_loader(game_dir: &Path) -> Result<(), ModError> {
     let loader = game_dir.join(LOADER_FILE);
     let backup = game_dir.join(BACKUP_FILE);
@@ -48,8 +54,23 @@ pub fn install_glint_loader(game_dir: &Path) -> Result<(), ModError> {
     Ok(())
 }
 
+// extensions moved here
+const TAKEN_OVER: &str = ".from-mega-hack";
+
+pub fn has_taken_over_extensions(game_dir: &Path) -> bool {
+    game_dir.join(GLINT_MODS_FOLDER).join(TAKEN_OVER).exists()
+}
+
+/// extensions load with mega hack disabled
+pub fn take_over_extensions(game_dir: &Path) -> Result<(), ModError> {
+    let mods = game_dir.join(GLINT_MODS_FOLDER);
+    move_dll_mods(&game_dir.join(MEGA_HACK_MODS_FOLDER), &mods)?;
+    fs::write(mods.join(TAKEN_OVER), b"")?;
+    Ok(())
+}
+
 /// dlls and the extensions marker
-pub fn move_dll_mods(from: &Path, to: &Path) -> Result<(), ModError> {
+fn move_dll_mods(from: &Path, to: &Path) -> Result<(), ModError> {
     let entries = match fs::read_dir(from) {
         Ok(entries) => entries,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
@@ -78,6 +99,13 @@ pub fn move_dll_mods(from: &Path, to: &Path) -> Result<(), ModError> {
 pub fn remove_glint_loader(game_dir: &Path) -> Result<(), ModError> {
     if !has_glint_loader(game_dir) {
         return Ok(());
+    }
+    if has_taken_over_extensions(game_dir) {
+        move_dll_mods(
+            &game_dir.join(GLINT_MODS_FOLDER),
+            &game_dir.join(MEGA_HACK_MODS_FOLDER),
+        )?;
+        fs::remove_file(game_dir.join(GLINT_MODS_FOLDER).join(TAKEN_OVER))?;
     }
     fs::remove_file(game_dir.join(LOADER_FILE))?;
     for (from, to) in [(BACKUP_FILE, LOADER_FILE), (OFF_BACKUP, OFF_LOADER)] {
