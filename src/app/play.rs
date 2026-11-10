@@ -6,7 +6,7 @@ use crate::instances::InstanceName;
 use crate::instances::{Instance, same_folder};
 use crate::launch::{
     GameProcess, LaunchRequest, PROTON_NAME, WineStatus, find_proton, find_runtime, has_steam_drm,
-    is_running_in,
+    is_running_in, wine_steam_running,
 };
 use crate::launch::{LaunchBlocker, LaunchFacts, LaunchReadiness};
 use crate::steam::{
@@ -25,7 +25,23 @@ struct Game {
     process: GameProcess,
     started: Instant,
     is_save_swapped: bool,
-    quick_exit_hint: &'static str,
+    steam: SteamCheck,
+}
+
+/// Which Steam the game needs, checked if it closes right away
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum SteamCheck {
+    Host,
+    Wine,
+}
+
+impl SteamCheck {
+    fn is_running(self) -> Option<bool> {
+        match self {
+            Self::Host => crate::platform::steam_running().ok(),
+            Self::Wine => Some(wine_steam_running()),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -121,14 +137,14 @@ impl PlaySession {
         instance: InstanceName,
         process: GameProcess,
         is_save_swapped: bool,
-        quick_exit_hint: &'static str,
+        steam: SteamCheck,
     ) {
         self.game = Some(Game {
             instance,
             process,
             started: Instant::now(),
             is_save_swapped,
-            quick_exit_hint,
+            steam,
         });
     }
     pub(super) fn save_source(&self, instance: &Instance) -> SaveSource {
@@ -251,12 +267,21 @@ impl PlaySession {
         let quick = game.started.elapsed() < Duration::from_secs(8);
         let name = game.instance.clone();
         let is_save_swapped = game.is_save_swapped;
-        let hint = game.quick_exit_hint;
+        let steam = game.steam;
         self.game = None;
-        if quick {
-            activity.notice(Notice::failed(format!("{name} closed right away. {hint}")));
-        } else {
-            activity.push_log(format!("\"{name}\" closed"));
+        // closing the game yourself is quick too, so only blame steam if it's really gone
+        let failure = match quick.then(|| steam.is_running()) {
+            None | Some(Some(true)) => None,
+            Some(Some(false)) => Some("Steam isn't running"),
+            Some(None) => Some("Is Steam running?"),
+        };
+        match failure {
+            Some(reason) => {
+                activity.notice(Notice::failed(format!(
+                    "{name} closed right away. {reason}"
+                )));
+            }
+            None => activity.push_log(format!("\"{name}\" closed")),
         }
         is_save_swapped
     }

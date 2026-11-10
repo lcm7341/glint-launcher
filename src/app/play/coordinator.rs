@@ -1,4 +1,4 @@
-use super::{launch_blocker_message, own_mac_home};
+use super::{SteamCheck, launch_blocker_message, own_mac_home};
 use crate::app::windows_steam::steam_needed_notice;
 use crate::app::{App, Notice};
 use crate::gd::GdPlatform;
@@ -67,9 +67,9 @@ impl App {
         let notify = Arc::clone(&self.notify);
         let notify = move || notify();
         let mut is_save_swapped = false;
-        let mut quick_exit_hint = "Is Steam running?";
+        let mut steam = SteamCheck::Host;
         let (started, how) = if let LaunchRoute::Wine { through_steam } = route {
-            quick_exit_hint = "Is Steam signed in?";
+            steam = SteamCheck::Wine;
             match self.wine.start_game(instance, through_steam, notify) {
                 Ok(started) => started,
                 Err(notice) => return notice,
@@ -107,7 +107,7 @@ impl App {
                     instance.config().version
                 ));
                 self.play
-                    .started(name.clone(), process, is_save_swapped, quick_exit_hint);
+                    .started(name.clone(), process, is_save_swapped, steam);
                 None
             }
             Err(error) => {

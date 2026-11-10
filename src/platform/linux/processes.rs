@@ -49,9 +49,10 @@ fn unix_parent(exe: &str) -> Option<PathBuf> {
 pub(in crate::platform) fn game_running() -> io::Result<bool> {
     game_dirs().map(|dirs| !dirs.is_empty())
 }
+// the client is ubuntu12_32/steam, flatpak's included; /proc shows flatpak processes too
 pub(in crate::platform) fn steam_running() -> io::Result<bool> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "Linux Steam process detection is not implemented",
-    ))
+    let processes = fs::read_dir("/proc")?;
+    Ok(processes.flatten().any(|process| {
+        fs::read_to_string(process.path().join("comm")).is_ok_and(|comm| comm.trim_end() == "steam")
+    }))
 }
