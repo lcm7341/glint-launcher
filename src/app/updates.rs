@@ -47,7 +47,7 @@ impl Updater {
                     Ok(_) => activity.push_log(format!("Glint {current} is up to date")),
                     // offline is normal, so this only goes in the log
                     Err(reason) => {
-                        activity.push_log(format!("Couldn't check for glint updates: {reason}"));
+                        activity.push_log(format!("Couldn't check for Glint updates: {reason}"));
                     }
                 }
             }
@@ -60,14 +60,14 @@ impl Updater {
                 let program = match installed {
                     Ok(program) => program,
                     Err(reason) => {
-                        activity.notice(Notice::failed(format!("Couldn't update glint: {reason}")));
+                        activity.notice(Notice::failed(format!("Couldn't update Glint: {reason}")));
                         return;
                     }
                 };
                 match update::relaunch(&program) {
                     Ok(()) => *self = Self::Restarting,
                     Err(error) => activity.notice(Notice::done(format!(
-                        "Updated to glint {version}. Reopen glint to use it ({error})"
+                        "Updated to Glint {version}. Reopen Glint to use it ({error})"
                     ))),
                 }
             }
@@ -118,7 +118,7 @@ impl App {
         };
         let release = release.clone();
         let version = release.version;
-        self.push_log(format!("Downloading glint {version} ({})", release.page));
+        self.push_log(format!("Downloading Glint {version} from echogd.com"));
         let job = Job::spawn(&self.notify, move || {
             update::install(&release).map_err(|error| error.to_string())
         });

@@ -3,7 +3,6 @@ use std::str::FromStr;
 
 use crate::parse_error::ParseError;
 
-/// A release version like 0.0.1, tagged on GitHub as v0.0.1
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Version {
     major: u64,

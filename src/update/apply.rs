@@ -21,7 +21,7 @@ pub(crate) fn install(release: &Release) -> Result<PathBuf, UpdateError> {
     let bytes = download(release)?;
     if cfg!(target_os = "macos") {
         let bundle = app_bundle(&exe).ok_or_else(|| {
-            UpdateError::Unsupported("glint isn't running from Glint.app".to_owned())
+            UpdateError::Unsupported("Glint isn't running from Glint.app".to_owned())
         })?;
         replace_bundle(&bundle, &bytes)?;
         Ok(bundle)
