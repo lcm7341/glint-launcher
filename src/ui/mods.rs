@@ -3,10 +3,10 @@ pub(crate) mod geode;
 
 use crate::gd::GdPlatform;
 use crate::instances::Instance;
-use crate::mods::{DllLoader, DllMod, EchoMod, GeodeMod, MegaHackLoader};
+use crate::mods::{DllLoader, DllMod, ECHO_ID, EchoMod, GeodeMod, MegaHackLoader};
 use weft::prelude::{Align, Grow, Insets, Ui};
 
-use crate::app::{Action, App, ModChange, ModsState};
+use crate::app::{Action, App, EchoState, ModChange, ModsState};
 use crate::ui::mod_picker::ModPicker;
 
 pub(crate) fn show_mods(
@@ -29,6 +29,7 @@ pub(crate) fn show_mods(
             if let Some(echo) = &echo {
                 show_echo(ui, echo, &change, actions);
             }
+            show_echo_21_offer(ui, launcher, instance, &change, actions);
             match launcher.mods_state(instance) {
                 ModsState::Geode { mods } => {
                     show_geode_mods(ui, launcher, instance, mods, actions);
@@ -41,8 +42,8 @@ pub(crate) fn show_mods(
                 }
                 ModsState::NoLoader { can_install } => {
                     let text = match echo {
-                        Some(_) => "Nothing loads other DLL mods here yet.",
-                        None => "Nothing loads mods here yet.",
+                        Some(_) => "No loader for other DLL mods.",
+                        None => "No mod loader.",
                     };
                     ui.label(text).muted();
                     if ui
@@ -89,7 +90,7 @@ pub(crate) fn show_mods(
                                 ui.label(format!("Couldn't read the mods: {error}")).muted();
                             }
                             Ok(mods) if mods.is_empty() => {
-                                ui.label("No mods yet.").muted();
+                                ui.label("No mods.").muted();
                             }
                             Ok(mods) => {
                                 for found in mods {
@@ -115,7 +116,7 @@ fn show_geode_mods(
                 .muted();
         }
         Ok(mods) if mods.is_empty() => {
-            ui.label("No Geode mods yet.").muted();
+            ui.label("No Geode mods.").muted();
         }
         Ok(mods) => crate::ui::mods::geode::show_geode_mods(ui, launcher, instance, mods, actions),
     }
@@ -143,6 +144,43 @@ fn show_echo(
             ui.label("Echo's loader is missing.").muted().font_size(12);
         }
     });
+}
+
+fn show_echo_21_offer(
+    ui: &mut Ui,
+    launcher: &App,
+    instance: &Instance,
+    change: &impl Fn(ModChange) -> Action,
+    actions: &mut Vec<Action>,
+) {
+    let Some(offer) = launcher
+        .echo_offer(instance)
+        .filter(|offer| offer.is_gd21 && offer.state != EchoState::Installed)
+    else {
+        return;
+    };
+    let version = &offer.release.version;
+    let installing = launcher.installing_mod(instance.name()) == Some(ECHO_ID);
+    let label = match (installing, offer.state) {
+        (true, _) => "Installing Echo…".to_owned(),
+        (false, EchoState::Update) => format!("Update Echo to v{version}"),
+        (false, _) => format!("Install Echo v{version}"),
+    };
+    let blocker = if launcher.is_game_open(instance) {
+        Some("Close the game first")
+    } else if launcher.installing_geode() {
+        Some("Another install is running")
+    } else {
+        None
+    };
+    let clicked = ui
+        .button(label)
+        .enabled(!installing && blocker.is_none())
+        .tooltip(blocker.unwrap_or("Downloads it from echogd.com"))
+        .clicked();
+    if clicked {
+        actions.push(change(ModChange::InstallEcho));
+    }
 }
 
 const INDENT: f32 = 24.0;
@@ -203,13 +241,25 @@ fn show_loader_bar(
             if ui.button("Open folder").clicked() {
                 actions.push(change(ModChange::OpenFolder));
             }
-            if loader == DllLoader::GlintLoader
-                && ui
-                    .button("Remove Glint Loader")
-                    .tooltip("Keeps glint-mods")
-                    .clicked()
-            {
-                actions.push(change(ModChange::RemoveGlintLoader));
+            let (label, tip, change_loader) = match (loader, mega_hack.is_some()) {
+                (DllLoader::GlintLoader, true) => (
+                    "Remove Glint Loader",
+                    "Moves your mods back to Mega Hack's extensions",
+                    ModChange::RemoveGlintLoader,
+                ),
+                (DllLoader::GlintLoader, false) => (
+                    "Remove Glint Loader",
+                    "Keeps glint-mods",
+                    ModChange::RemoveGlintLoader,
+                ),
+                (DllLoader::MegaHack, _) => (
+                    "Install Glint Loader",
+                    "Loads your mods with Mega Hack off too. Moves them to glint-mods",
+                    ModChange::InstallGlintLoader,
+                ),
+            };
+            if ui.button(label).tooltip(tip).clicked() {
+                actions.push(change(change_loader));
             }
         });
     add
@@ -272,6 +322,7 @@ fn show_old_mac_build(ui: &mut Ui, launcher: &App, instance: &Instance, actions:
         actions.push(Action::Create {
             name: None,
             entry: entry.clone(),
+            linked: false,
         });
     }
 }

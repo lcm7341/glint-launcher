@@ -50,7 +50,7 @@ pub fn set_mega_hack_enabled(game_dir: &Path, enabled: bool) -> Result<(), ModEr
     Ok(())
 }
 
-const EXTENSIONS_OFF: &str = ".glint-extensions-off";
+pub(crate) const EXTENSIONS_OFF: &str = ".glint-extensions-off";
 
 pub fn extensions_enabled(folder: &Path) -> bool {
     !folder.join(EXTENSIONS_OFF).exists()

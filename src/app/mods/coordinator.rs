@@ -8,7 +8,9 @@ use crate::mods::{
     has_mega_hack, install_glint_loader, remove_dll_mod, remove_glint_loader, set_dll_mod_enabled,
     set_extensions_enabled, set_geode_mod_enabled, set_geode_mod_pinned, set_mega_hack_enabled,
 };
-use crate::mods::{EchoMod, MegaHackLoader};
+use crate::mods::{
+    EchoMod, GLINT_MODS_FOLDER, MEGA_HACK_MODS_FOLDER, MegaHackLoader, ModError, move_dll_mods,
+};
 use crate::platform::native_game_running;
 use std::fs;
 use std::path::Path;
@@ -75,11 +77,11 @@ impl App {
             (ModChange::InstallGlintLoader, _) => {
                 Some(install_loader(name, &game_dir, is_before_geode))
             }
-            (ModChange::RemoveGlintLoader, _) => Some(match remove_glint_loader(&game_dir) {
+            (ModChange::RemoveGlintLoader, _) => Some(match remove_loader(&game_dir) {
                 Ok(()) => Notice::done(format!("Removed Glint Loader from \"{name}\"")),
                 Err(error) => Notice::failed(format!("Couldn't remove Glint Loader: {error}")),
             }),
-            (_, None) => Some(Notice::failed(format!("Nothing loads mods in \"{name}\""))),
+            (_, None) => Some(Notice::failed(format!("\"{name}\" has no mod loader"))),
             (ModChange::SetEnabled { file_name, enabled }, Some(folder)) => {
                 let verb = if enabled { "turn on" } else { "turn off" };
                 set_dll_mod_enabled(&folder, &file_name, enabled)
@@ -108,7 +110,8 @@ impl App {
                 | ModChange::SetMegaHackEnabled { .. }
                 | ModChange::SetExtensionsEnabled { .. }
                 | ModChange::SetGeodePinned { .. }
-                | ModChange::InstallFromIndex { .. },
+                | ModChange::InstallFromIndex { .. }
+                | ModChange::InstallEcho,
                 Some(_),
             ) => None,
             (ModChange::OpenFolder, Some(folder)) => match fs::create_dir_all(&folder) {
@@ -158,15 +161,35 @@ impl App {
 fn install_loader(name: &InstanceName, game_dir: &Path, is_before_geode: bool) -> Notice {
     // 2.2+ is 64-bit, glint loader is 32-bit
     if !is_before_geode {
-        return Notice::failed("Glint Loader is only for pre-2.2");
+        return Notice::failed("Glint Loader is for pre-2.2");
     }
-    if has_mega_hack(game_dir) || has_geode(game_dir) {
-        return Notice::failed(format!("\"{name}\" already has a mod loader"));
+    if has_geode(game_dir) {
+        return Notice::failed(format!("\"{name}\" has Geode"));
     }
-    match install_glint_loader(game_dir) {
+    let installed = install_glint_loader(game_dir).and_then(|()| {
+        if has_mega_hack(game_dir) {
+            move_dll_mods(
+                &game_dir.join(MEGA_HACK_MODS_FOLDER),
+                &game_dir.join(GLINT_MODS_FOLDER),
+            )
+        } else {
+            Ok(())
+        }
+    });
+    match installed {
         Ok(()) => Notice::done(format!("Installed Glint Loader into \"{name}\"")),
         Err(error) => Notice::failed(format!("Couldn't install Glint Loader: {error}")),
     }
+}
+
+fn remove_loader(game_dir: &Path) -> Result<(), ModError> {
+    if has_mega_hack(game_dir) {
+        move_dll_mods(
+            &game_dir.join(GLINT_MODS_FOLDER),
+            &game_dir.join(MEGA_HACK_MODS_FOLDER),
+        )?;
+    }
+    remove_glint_loader(game_dir)
 }
 
 impl App {
@@ -174,14 +197,19 @@ impl App {
         self.mods.invalidate();
     }
     pub(in crate::app) fn poll_mods(&mut self) {
-        let play = &self.play;
-        let inputs = self
+        let saves: Vec<_> = self
             .library
             .entries()
             .iter()
             .filter_map(|entry| entry.as_ref().ok())
-            .map(|instance| (instance, play.gd_save_dir(instance)));
-        self.mods.refresh(inputs);
+            .map(|instance| self.gd_save_dir(instance))
+            .collect();
+        let instances = self
+            .library
+            .entries()
+            .iter()
+            .filter_map(|entry| entry.as_ref().ok());
+        self.mods.refresh(instances.zip(saves));
     }
     pub(crate) fn mods_state(&self, instance: &Instance) -> ModsState {
         self.mods.state(instance)
@@ -206,7 +234,7 @@ impl App {
     }
     pub(in crate::app) fn start_geode_install(&mut self, name: &InstanceName) -> Option<Notice> {
         if self.mods.installing_geode() {
-            return Some(Notice::failed("Already installing something"));
+            return Some(Notice::failed("Another install is running"));
         }
         let instance = self.library.find(name)?.as_ref().ok()?;
         self.mods
@@ -219,7 +247,7 @@ impl App {
         mod_name: String,
     ) -> Option<Notice> {
         if self.mods.installing_geode() {
-            return Some(Notice::failed("Already installing something"));
+            return Some(Notice::failed("Another install is running"));
         }
         let Some(Ok(instance)) = self.library.find(name) else {
             return Some(Notice::failed(format!("There's no instance \"{name}\"")));
