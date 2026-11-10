@@ -26,7 +26,7 @@ impl NewInstanceSave {
     pub fn display_name(self) -> &'static str {
         match self {
             Self::Link => "Main save",
-            Self::Own => "Own save",
+            Self::Own => "Per-instance",
             Self::Ask => "Ask",
         }
     }
