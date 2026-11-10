@@ -1,5 +1,6 @@
 mod dll_mod;
 mod echo;
+mod echo_release;
 mod geode_error;
 mod geode_index;
 mod geode_install;
@@ -15,7 +16,11 @@ mod mod_error;
 mod mods_folder;
 
 pub use dll_mod::{DllMod, add_dll_mod, list_dll_mods, remove_dll_mod, set_dll_mod_enabled};
-pub use echo::{EchoMod, echo_folder, find_echo};
+pub use echo::{EchoMod, echo_folder, echo_version, find_echo};
+pub use echo_release::{
+    ECHO_21_GD, ECHO_ID, EchoRelease, EchoReleases, fetch_echo_releases, install_echo_21,
+    install_echo_geode,
+};
 pub use geode_error::GeodeError;
 pub use geode_index::{INDEX_PAGE_SIZE, IndexMod, IndexPage, search_geode_index};
 pub use geode_install::{has_geode, install_geode, remove_geode};
@@ -26,11 +31,13 @@ pub use geode_mods::{
 };
 pub use geode_release::{GeodeRelease, fetch_latest_geode};
 pub use glint_loader::{
-    GLINT_MODS_FOLDER, has_glint_loader, install_glint_loader, remove_glint_loader,
+    GLINT_MODS_FOLDER, has_glint_loader, install_glint_loader, move_dll_mods, remove_glint_loader,
 };
 pub use mega_hack::{
     MegaHackLoader, extensions_enabled, find_mega_hack_loader, set_extensions_enabled,
     set_mega_hack_enabled,
 };
 pub use mod_error::ModError;
-pub use mods_folder::{DllLoader, ModsFolder, find_mods_folder, has_mega_hack};
+pub use mods_folder::{
+    DllLoader, MEGA_HACK_MODS_FOLDER, ModsFolder, find_mods_folder, has_mega_hack,
+};

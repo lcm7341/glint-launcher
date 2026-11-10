@@ -37,7 +37,7 @@ fn has_echo_loader(game_dir: &Path) -> bool {
         })
 }
 
-fn echo_version(name: &str) -> Option<Vec<u64>> {
+pub fn echo_version(name: &str) -> Option<Vec<u64>> {
     let version = name.strip_prefix("Echo v")?;
     version
         .split('.')

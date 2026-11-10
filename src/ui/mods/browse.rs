@@ -1,11 +1,11 @@
 use crate::gd::{GdPlatform, GdVersion};
 use crate::instances::Instance;
 use crate::instances::InstanceName;
-use crate::mods::{INDEX_PAGE_SIZE, IndexMod, IndexPage, search_geode_index};
+use crate::mods::{ECHO_ID, INDEX_PAGE_SIZE, IndexMod, IndexPage, search_geode_index};
 use weft::prelude::{Align, Fixed, FontWeight, Grow, Insets, Ui};
 use weft::ui::Border;
 
-use crate::app::{Action, App, ModChange, ModsState, Notify};
+use crate::app::{Action, App, EchoState, ModChange, ModsState, Notify};
 use crate::format::capitalized;
 use crate::task::Job;
 use crate::ui::theme::{HAIRLINE, MUTED, TEXT, WELL};
@@ -168,7 +168,7 @@ impl GeodeIndex {
                             (Some(_), _) => String::new(),
                             (None, Some(_)) => "Loading…".to_owned(),
                             (None, None) if self.searched.is_empty() => {
-                                format!("No mods for GD {} yet.", instance.config().version)
+                                format!("No mods for GD {}.", instance.config().version)
                             }
                             (None, None) => format!("No mods match \"{}\".", self.searched),
                         };
@@ -176,7 +176,8 @@ impl GeodeIndex {
                             ui.label(text).muted();
                         }
                     }
-                    for found in &self.mods {
+                    self.show_echo(ui, launcher, instance, actions);
+                    for found in self.mods.iter().filter(|found| found.id != ECHO_ID) {
                         let state = if installing == Some(found.id.as_str()) {
                             InstallState::Installing
                         } else if installed.contains(&found.id) {
@@ -202,6 +203,48 @@ impl GeodeIndex {
                     }
                 });
             });
+    }
+
+    fn show_echo(
+        &self,
+        ui: &mut Ui,
+        launcher: &App,
+        instance: &Instance,
+        actions: &mut Vec<Action>,
+    ) {
+        let matches = self.searched.is_empty() || "echo".contains(&self.searched.to_lowercase());
+        let Some(offer) = launcher.echo_offer(instance).filter(|_| matches) else {
+            return;
+        };
+        let state = if launcher.installing_mod(instance.name()) == Some(ECHO_ID) {
+            InstallState::Installing
+        } else if offer.state == EchoState::Installed {
+            InstallState::Installed
+        } else if launcher.is_game_open(instance) {
+            InstallState::GameOpen
+        } else if launcher.installing_geode() {
+            InstallState::Busy
+        } else if offer.state == EchoState::Update {
+            InstallState::Update
+        } else {
+            InstallState::Available
+        };
+        let echo = IndexMod {
+            id: ECHO_ID.to_owned(),
+            name: "Echo".to_owned(),
+            developers: vec!["echogd.com".to_owned()],
+            description: offer.release.description,
+            version: offer.release.version,
+            downloads: 0,
+        };
+        ui.push_id(ECHO_ID, |ui| {
+            if show_mod(ui, &echo, state) {
+                actions.push(Action::Mod {
+                    instance: instance.name().clone(),
+                    change: ModChange::InstallEcho,
+                });
+            }
+        });
     }
 
     fn show_footer(&self, ui: &mut Ui) -> bool {
@@ -240,6 +283,7 @@ impl GeodeIndex {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum InstallState {
     Available,
+    Update,
     Installed,
     Installing,
     Busy,
@@ -268,14 +312,18 @@ fn show_mod(ui: &mut Ui, found: &IndexMod, state: InstallState) -> bool {
             });
             let (label, tooltip) = match state {
                 InstallState::Available => ("Install", "Install with dependencies"),
-                InstallState::Installed => ("Installed", "Already installed"),
+                InstallState::Update => ("Update", "Install the newest version"),
+                InstallState::Installed => ("Installed", "Installed"),
                 InstallState::Installing => ("Installing…", "Downloading"),
                 InstallState::Busy => ("Install", "Another install is running"),
                 InstallState::GameOpen => ("Install", "Close the game first"),
             };
             install = ui
                 .button(label)
-                .enabled(state == InstallState::Available)
+                .enabled(matches!(
+                    state,
+                    InstallState::Available | InstallState::Update
+                ))
                 .tooltip(tooltip)
                 .clicked();
         });
@@ -293,8 +341,10 @@ fn byline(found: &IndexMod) -> String {
         [only] => parts.push(only.clone()),
         [first, rest @ ..] => parts.push(format!("{first} +{}", rest.len())),
     }
-    parts.push(format!("{} downloads", short_count(found.downloads)));
-    parts.join(" · ")
+    if found.downloads > 0 {
+        parts.push(format!("{} downloads", short_count(found.downloads)));
+    }
+    parts.join(" - ")
 }
 
 fn short_count(count: u64) -> String {

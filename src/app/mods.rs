@@ -6,8 +6,11 @@ use std::rc::Rc;
 
 mod cache;
 mod coordinator;
+mod echo;
 mod install;
 use cache::ModsCache;
+use echo::EchoFetch;
+pub(crate) use echo::{EchoOffer, EchoState};
 use install::GeodeTask;
 pub(crate) use install::ModLoader;
 
@@ -15,6 +18,7 @@ pub(crate) use install::ModLoader;
 pub(super) struct ModManager {
     cache: ModsCache,
     installing: Option<GeodeTask>,
+    echo: EchoFetch,
 }
 
 pub(super) struct ModContext<'a> {
@@ -52,6 +56,7 @@ pub(crate) enum ModChange {
     SetGeodePinned { id: String, pinned: bool },
     SetEchoEnabled { file_name: String, enabled: bool },
     InstallFromIndex { id: String, name: String },
+    InstallEcho,
 }
 
 impl ModsState {

@@ -1,9 +1,12 @@
 use crate::gd::GdPlatform;
 use crate::instances::InstanceName;
 use crate::instances::{GameFiles, Instance};
-use crate::mods::{fetch_latest_geode, has_geode, install_geode, install_geode_mod, remove_geode};
+use crate::mods::{
+    ECHO_ID, fetch_latest_geode, has_geode, install_echo_21, install_echo_geode, install_geode,
+    install_geode_mod, remove_geode,
+};
 
-use super::{ModContext, ModManager};
+use super::{EchoOffer, ModContext, ModManager};
 use crate::app::{Activity, Notice};
 use crate::task::Job;
 use crate::task::Notify;
@@ -43,7 +46,7 @@ impl ModManager {
             return ModLoader::Geode;
         }
         let first = FIRST_GEODE_VERSION.parse().expect("a fixed version parses");
-        let can_install = !instance.is_linked()
+        let can_install = !instance.is_imported()
             && instance.config().platform == GdPlatform::Windows
             && instance.game_files() == GameFiles::Present
             && instance.config().version >= first;
@@ -61,7 +64,7 @@ impl ModManager {
         activity: &mut Activity,
     ) -> Option<Notice> {
         if self.installing.is_some() {
-            return Some(Notice::failed("Already installing something"));
+            return Some(Notice::failed("Another install is running"));
         }
         let name = instance.name();
         let version = instance.config().version.clone();
@@ -73,7 +76,7 @@ impl ModManager {
                     false => release.version,
                 })
                 .map_err(|error| error.to_string()),
-            Ok(None) => Err(format!("there's no Geode for {version} yet")),
+            Ok(None) => Err(format!("there's no Geode for {version}")),
             Err(error) => Err(error.to_string()),
         });
         activity.push_log(format!("Installing Geode into \"{name}\""));
@@ -104,7 +107,7 @@ impl ModManager {
         activity: &mut Activity,
     ) -> Option<Notice> {
         if self.installing.is_some() {
-            return Some(Notice::failed("Already installing something"));
+            return Some(Notice::failed("Another install is running"));
         }
         let name = instance.name();
         let game_dir = instance.game_dir();
@@ -135,10 +138,52 @@ impl ModManager {
         None
     }
 
+    pub(in crate::app) fn start_echo_install(
+        &mut self,
+        instance: &Instance,
+        offer: EchoOffer,
+        context: ModContext<'_>,
+        activity: &mut Activity,
+    ) -> Option<Notice> {
+        if self.installing.is_some() {
+            return Some(Notice::failed("Another install is running"));
+        }
+        if context.game_open {
+            return Some(Notice::failed("Close the game first"));
+        }
+        let name = instance.name();
+        let game_dir = instance.game_dir();
+        let release = offer.release;
+        let label = format!("Echo v{}", release.version);
+        let installed = label.clone();
+        let job = Job::spawn(context.notify, move || {
+            let installing = if offer.is_gd21 {
+                install_echo_21(&game_dir, &release)
+            } else {
+                install_echo_geode(&game_dir, &release)
+            };
+            installing
+                .map(|()| installed)
+                .map_err(|error| error.to_string())
+        });
+        activity.push_log(format!(
+            "Installing {label} from echogd.com into \"{name}\""
+        ));
+        self.installing = Some(GeodeTask {
+            instance: name.clone(),
+            index_mod: Some(IndexInstall {
+                id: ECHO_ID.to_owned(),
+                name: "Echo".to_owned(),
+            }),
+            job,
+        });
+        None
+    }
+
     pub(in crate::app) fn remove_loader(&self, instance: &Instance) -> Option<Notice> {
         let name = instance.name();
-        if instance.is_linked() {
-            return Some(Notice::failed("Linked installs are left alone"));
+        if instance.is_imported() {
+            return Some(Notice::failed("Glint doesn't change imported installs"));
         }
         Some(match remove_geode(&instance.game_dir()) {
             Ok(()) => Notice::done(format!("Removed Geode from \"{name}\"")),
