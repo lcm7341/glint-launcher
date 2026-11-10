@@ -46,7 +46,7 @@ impl InstanceLibrary {
         let store = self.store.as_ref()?;
         let notice = match store.set_linked(name, linked) {
             Ok(_) if linked => Notice::done(format!("\"{name}\" uses your main save now")),
-            Ok(_) => Notice::done(format!("\"{name}\" uses its own save now")),
+            Ok(_) => Notice::done(format!("\"{name}\" uses a per-instance save now")),
             Err(error) => Notice::failed(format!("Couldn't change the save: {error}")),
         };
         self.refresh(activity);
@@ -138,7 +138,7 @@ impl InstanceLibrary {
             }
         }
     }
-    // not at startup, reading desktop/documents/downloads pops a permission prompt on macos
+    // not at startup: macos permission prompts
     pub(crate) fn refresh_found(&mut self, steam_install: Option<PathBuf>) {
         let folders: Vec<PathBuf> = steam_install.into_iter().chain(search_folders()).collect();
         let imported: Vec<PathBuf> = self

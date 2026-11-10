@@ -259,7 +259,9 @@ fn show_pin(
     } else {
         (Icon::Pin, "Pin to the top")
     };
-    if icon_button(ui, pin, tip, false).clicked() && !is_open {
+    let pin = icon_button(ui, pin, tip, false);
+    ui.tooltip_for(&pin, tip);
+    if pin.clicked() && !is_open {
         actions.push(change(ModChange::SetGeodePinned {
             id: found.id.clone(),
             pinned: !found.is_pinned,

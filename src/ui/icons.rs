@@ -113,8 +113,7 @@ pub(crate) const BUTTON: f32 = 36.0;
 const ICON: f32 = 18.0;
 
 pub(crate) fn icon_button(ui: &mut Ui, icon: Icon, name: &str, is_active: bool) -> Response {
-    let response = ui
-        .canvas()
+    ui.canvas()
         .size(BUTTON, BUTTON)
         .sense(Sense::CLICK)
         .name(name)
@@ -137,7 +136,5 @@ pub(crate) fn icon_button(ui: &mut Ui, icon: Icon, name: &str, is_active: bool) 
             };
             let inset = (rect.width() - ICON) / 2.0;
             icon.draw(canvas, vec2(inset, inset), ICON, color);
-        });
-    ui.tooltip_for(&response, name);
-    response
+        })
 }

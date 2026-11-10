@@ -176,7 +176,7 @@ fn show_echo_21_offer(
     let clicked = ui
         .button(label)
         .enabled(!installing && blocker.is_none())
-        .tooltip(blocker.unwrap_or("Downloads it from echogd.com"))
+        .tooltip(blocker.unwrap_or("Downloads Echo from echogd.com"))
         .clicked();
     if clicked {
         actions.push(change(ModChange::InstallEcho));
@@ -199,7 +199,7 @@ fn show_loader_bar(
     if let Some(mega_hack) = &mega_hack {
         let mut on = mega_hack.is_enabled;
         let toggle = ui.toggle(&mut on, "Mega Hack").show();
-        ui.tooltip_for(&toggle, "Off stops it loading");
+        ui.tooltip_for(&toggle, "Disables Mega Hack");
         if toggle.changed() {
             actions.push(change(ModChange::SetMegaHackEnabled { enabled: on }));
         }
@@ -222,7 +222,6 @@ fn show_loader_bar(
                         .enabled(mega_hack_on)
                         .style(|style| style.width(Grow(1)))
                         .show();
-                    ui.tooltip_for(&toggle, "Toggle all extensions");
                     if toggle.changed() {
                         actions.push(change(ModChange::SetExtensionsEnabled { enabled: on }));
                     }
@@ -249,12 +248,12 @@ fn show_loader_bar(
                 ),
                 (DllLoader::GlintLoader, false) => (
                     "Remove Glint Loader",
-                    "Keeps glint-mods",
+                    "Saves installed mods",
                     ModChange::RemoveGlintLoader,
                 ),
                 (DllLoader::MegaHack, _) => (
                     "Install Glint Loader",
-                    "Loads your mods with Mega Hack off too. Moves them to glint-mods",
+                    "Loads your mods with Mega Hack disabled. Moves them to glint-mods",
                     ModChange::InstallGlintLoader,
                 ),
             };

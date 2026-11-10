@@ -181,7 +181,7 @@ fn show_new_instance(
                     .and_then(|version| launcher.catalog().find(version, platform))
             };
             let entry = find(*platform);
-            // ask rather than quietly swapping in the windows build
+            // ask, no silent swap
             let wine_entry = (*platform == GdPlatform::MacOs
                 && launcher.native_platform() == Some(GdPlatform::MacOs)
                 && release.as_ref().is_some_and(is_encrypted_mac_build))
@@ -234,12 +234,12 @@ fn show_save_choice(
     }
     field_label(ui, "Save");
     ui.segmented(linked, [false, true])
-        .labels(["Its own", "Main GD save"])
+        .labels(["Per-instance", "Main GD save"])
         .name("Save")
         .show();
 }
 
-// a pre-2.2 macOS build won't open, so a Mac asks instead of quietly picking Windows
+// old mac builds don't open
 fn create_buttons(
     ui: &mut Ui,
     entry: Option<&CatalogEntry>,

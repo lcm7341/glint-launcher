@@ -28,7 +28,7 @@ pub(super) fn show_backups(ui: &mut Ui, window: &mut Window, open: &mut bool, na
                             .tooltip(if game_open {
                                 "Close Geometry Dash first"
                             } else {
-                                "Restores this save. Glint backs up the current one first"
+                                "Restores this save. Glint will back up the current save first"
                             })
                             .clicked();
                         if restore {

@@ -56,11 +56,7 @@ pub(crate) fn play(launcher: &App, instance: Option<&Instance>) -> Play {
                 "Play",
                 launch_blocker_message(blocker, &instance.config().version),
             ),
-            LaunchReadiness::Ready(_) => Play::on(
-                "Play",
-                "Steam has to be running",
-                Click::Run(Action::Play(name)),
-            ),
+            LaunchReadiness::Ready(_) => Play::on("Play", "", Click::Run(Action::Play(name))),
         };
     }
 

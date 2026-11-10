@@ -313,19 +313,22 @@ fn show_mod(ui: &mut Ui, found: &IndexMod, state: InstallState) -> bool {
             let (label, tooltip) = match state {
                 InstallState::Available => ("Install", "Install with dependencies"),
                 InstallState::Update => ("Update", "Install the newest version"),
-                InstallState::Installed => ("Installed", "Installed"),
+                InstallState::Installed => ("Installed", ""),
                 InstallState::Installing => ("Installing…", "Downloading"),
                 InstallState::Busy => ("Install", "Another install is running"),
                 InstallState::GameOpen => ("Install", "Close the game first"),
             };
-            install = ui
+            let button = ui
                 .button(label)
                 .enabled(matches!(
                     state,
                     InstallState::Available | InstallState::Update
                 ))
-                .tooltip(tooltip)
-                .clicked();
+                .show();
+            if !tooltip.is_empty() {
+                ui.tooltip_for(&button, tooltip);
+            }
+            install = button.clicked();
         });
     install
 }

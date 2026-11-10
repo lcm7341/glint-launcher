@@ -63,7 +63,6 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
                 .button("Log")
                 .muted()
                 .name("App log")
-                .tooltip("Log")
                 .style(|style| if showing_log { style.bg(RAISED) } else { style })
                 .show();
             if log.clicked() && ui.once_per_frame(ui.child_id("log switch")) {

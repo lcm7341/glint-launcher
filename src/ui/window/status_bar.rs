@@ -37,13 +37,7 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
                         .muted()
                         .font_size(12)
                         .wrap(false);
-                    if ui
-                        .button("Sign out")
-                        .muted()
-                        .height(22)
-                        .tooltip("Sign out")
-                        .clicked()
-                    {
+                    if ui.button("Sign out").muted().height(22).clicked() {
                         window.actions.push(Action::SignOut);
                     }
                 }
@@ -52,7 +46,7 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
                         .muted()
                         .font_size(12)
                         .wrap(false)
-                        .tooltip("You'll sign in on your first download");
+                        .tooltip("Sign-in prompt will appear when downloading an instance");
                 }
             }
         });

@@ -51,12 +51,13 @@ fn update_button(ui: &mut Ui, window: &mut Window) {
         return;
     };
     let blocker = window.app.update_blocker();
+    let about = format!("Download and install Glint {version}");
     if ui
         .button(format!("Update to {version}"))
         .primary()
         .height(24)
         .enabled(blocker.is_none())
-        .tooltip(blocker.unwrap_or("Download the new Glint and restart"))
+        .tooltip(blocker.unwrap_or(&about))
         .clicked()
     {
         window.actions.push(Action::InstallUpdate);

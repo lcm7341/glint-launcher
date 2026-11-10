@@ -70,7 +70,9 @@ fn show_title(ui: &mut Ui, window: &mut Window, instance: &Instance) {
             } else {
                 (Icon::Star, "Add to favorites")
             };
-            if icon_button(ui, star, tip, false).clicked() {
+            let star = icon_button(ui, star, tip, false);
+            ui.tooltip_for(&star, tip);
+            if star.clicked() {
                 window.actions.push(Action::ToggleFavorite(name.clone()));
             }
             let more = icon_button(ui, Icon::More, "More", false);
@@ -224,7 +226,7 @@ fn show_save(ui: &mut Ui, window: &mut Window, instance: &Instance) {
                     .button("Backups…")
                     .height(24)
                     .enabled(has_backups)
-                    .tooltip("Glint backs up the save before every launch")
+                    .tooltip("Glint will back up the save before every launch")
                     .clicked()
                 {
                     window.dialog = Some(Dialog::Backups(name.clone()));
@@ -248,10 +250,10 @@ fn show_link(ui: &mut Ui, window: &mut Window, instance: &Instance) {
     let about = if linked {
         "Uses your main save"
     } else {
-        "Has its own save"
+        "Uses a per-instance save"
     };
     let mut copy_tip =
-        "Replaces its own save with a copy of your main save. Glint backs up its own first"
+        "Copies your main save over the per-instance save. Glint will back up the per-instance save first"
             .to_owned();
     if is_before_2_2(&config.version) {
         copy_tip.push_str(&format!(". {OLD_ON_NEW_SAVE}"));
@@ -281,13 +283,13 @@ fn show_link(ui: &mut Ui, window: &mut Window, instance: &Instance) {
                 {
                     window.actions.push(Action::CopyMainSave(name.clone()));
                 }
-                // a link that a newer main save blocks can still be cleared
+                // blocked links can be cleared
                 let (button, tip, link) = if instance.is_linked() {
-                    ("Unlink", "Use its own save", false)
+                    ("Unlink", "Will use a per-instance save", false)
                 } else {
                     (
                         "Link",
-                        "Use your main save. Its own stays in its folder",
+                        "Will use your main save. The per-instance save will stay in its folder",
                         true,
                     )
                 };

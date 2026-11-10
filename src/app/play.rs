@@ -33,7 +33,7 @@ struct Game {
     steam: SteamCheck,
 }
 
-/// Which Steam the game needs, checked if it closes right away
+/// steam check for quick exits
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum SteamCheck {
     Host,
@@ -41,16 +41,15 @@ pub(super) enum SteamCheck {
 }
 
 impl SteamCheck {
-    /// Why the game closed right away, or None if steam looks fine
     fn quick_exit_reason(self) -> Option<&'static str> {
         match self {
-            // closing the game yourself is quick too, so only blame steam if it's really gone
+            // quick exits can be on purpose
             Self::Host => match crate::platform::steam_running() {
                 Ok(true) => None,
                 Ok(false) => Some("Steam isn't running"),
                 Err(_) => Some("Is Steam running?"),
             },
-            // under wine it's usually a signed out steam, which stays running
+            // wine: usually signed out
             Self::Wine if wine_steam_running() => Some("Is Steam signed in?"),
             Self::Wine => Some("Steam for Windows isn't running"),
         }
@@ -84,7 +83,7 @@ impl SaveSource {
         match self {
             SaveSource::Steam(_) => "Shared with Steam",
             SaveSource::Shortcut(_) => "Shared with its Steam shortcut",
-            SaveSource::Own => "Its own",
+            SaveSource::Own => "Per-instance save",
         }
     }
 }
@@ -132,7 +131,7 @@ impl PlaySession {
     ) -> Option<LaunchRequest> {
         let steam_folder = self.environment.steam_folder.as_ref()?;
         let save_source = self.save_source(instance, mode);
-        // a prefix shared with steam keeps the proton steam runs it with
+        // shared prefix keeps steam's proton
         let steams_tool = match &save_source {
             SaveSource::Steam(compat) | SaveSource::Shortcut(compat) => compat
                 .file_name()
@@ -207,7 +206,7 @@ impl PlaySession {
         {
             return SaveSource::Steam(compat);
         }
-        // an imported folder with a steam shortcut keeps that shortcut's save
+        // shortcut prefix
         instance
             .config()
             .game_folder
@@ -248,11 +247,11 @@ impl PlaySession {
 
     pub(super) fn describe_save(&self, instance: &Instance, mode: SaveMode) -> &'static str {
         if self.is_windows_on_mac(instance) {
-            return "Its own";
+            return "Per-instance save";
         }
         match mode {
             SaveMode::Linked if self.is_native(instance) => "Your main save",
-            SaveMode::Own if self.is_native(instance) => "Its own",
+            SaveMode::Own if self.is_native(instance) => "Per-instance save",
             SaveMode::Own | SaveMode::Linked => self.save_source(instance, mode).describe(),
         }
     }

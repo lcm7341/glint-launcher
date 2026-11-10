@@ -41,7 +41,7 @@ impl App {
         if backup.parent() != Some(backups.as_path()) {
             return Some(Notice::failed("That backup isn't this instance's"));
         }
-        // read it first, backing up the current save can prune the oldest backup
+        // read before backing up, pruning can delete it
         let files = match read_backup(backup) {
             Ok(files) => files,
             Err(error) => {
@@ -106,7 +106,7 @@ impl App {
         (newest > *version).then(|| format!("Your main save is from {newest}"))
     }
 
-    // wine's windows save isn't the mac one
+    // wine save differs from mac
     fn shares_platform_save(&self, platform: GdPlatform) -> bool {
         self.native_platform() != Some(GdPlatform::MacOs) || platform != GdPlatform::Windows
     }
@@ -116,7 +116,6 @@ impl App {
             && self.shares_platform_save(instance.config().platform)
     }
 
-    /// Backs up the instance's own save first
     pub(super) fn copy_main_save(&mut self, name: &InstanceName) -> Option<Notice> {
         let Some(Ok(instance)) = self.find(name) else {
             return Some(Notice::failed(format!(
@@ -145,12 +144,12 @@ impl App {
         let backups = self.backups_dir(&instance)?;
         if let Err(error) = back_up_save(&own, &backups, &instance.config().version) {
             return Some(Notice::failed(format!(
-                "Didn't copy, couldn't back up its own save first: {error}"
+                "Didn't copy, couldn't back up the per-instance save first: {error}"
             )));
         }
         Some(match restore_files(&files, &own) {
             Ok(()) => Notice::done(format!(
-                "Copied your main save into \"{name}\". Glint backed up its own save"
+                "Copied your main save into \"{name}\". Glint backed up the per-instance save"
             )),
             Err(error) => Notice::failed(format!("Couldn't copy your main save: {error}")),
         })
@@ -168,7 +167,7 @@ impl App {
         let _ = fs::write(data_dir.main_save_version_path(), format!("{version}\n"));
     }
 
-    // imported linked installs like steam's count too, they're usually what made the save
+    // imported linked installs count
     fn main_save_version(&self) -> Option<GdVersion> {
         let imported = self
             .instances()
