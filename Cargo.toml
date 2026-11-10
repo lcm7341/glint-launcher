@@ -9,7 +9,7 @@ publish = false
 serde_json = "1"
 sha2 = "0.10"
 ureq = "3"
-weft = { path = "vendor/weft" }
+weft = { git = "ssh://git@github.com/lcm7341/weft.git", branch = "main" }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [lints.rust]
@@ -22,7 +22,6 @@ too_many_lines = "warn"
 wildcard_imports = "warn"
 
 [workspace]
-exclude = ["vendor"]
 
 # weft is too slow unoptimized to scroll smoothly
 [profile.dev.package."*"]

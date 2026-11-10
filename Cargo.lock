@@ -2066,6 +2066,7 @@ dependencies = [
 [[package]]
 name = "weft"
 version = "0.0.0"
+source = "git+ssh://git@github.com/lcm7341/weft.git?branch=main#17f247b5902e8c1fd0b9b905e91fe12566a99bc0"
 dependencies = [
  "weft-core",
  "weft-gfx",
@@ -2077,10 +2078,12 @@ dependencies = [
 [[package]]
 name = "weft-core"
 version = "0.0.0"
+source = "git+ssh://git@github.com/lcm7341/weft.git?branch=main#17f247b5902e8c1fd0b9b905e91fe12566a99bc0"
 
 [[package]]
 name = "weft-gfx"
 version = "0.0.0"
+source = "git+ssh://git@github.com/lcm7341/weft.git?branch=main#17f247b5902e8c1fd0b9b905e91fe12566a99bc0"
 dependencies = [
  "weft-core",
 ]
@@ -2088,6 +2091,7 @@ dependencies = [
 [[package]]
 name = "weft-platform"
 version = "0.0.0"
+source = "git+ssh://git@github.com/lcm7341/weft.git?branch=main#17f247b5902e8c1fd0b9b905e91fe12566a99bc0"
 dependencies = [
  "arboard",
  "softbuffer",
@@ -2098,6 +2102,7 @@ dependencies = [
 [[package]]
 name = "weft-text"
 version = "0.0.0"
+source = "git+ssh://git@github.com/lcm7341/weft.git?branch=main#17f247b5902e8c1fd0b9b905e91fe12566a99bc0"
 dependencies = [
  "weft-core",
  "weft-gfx",
@@ -2106,6 +2111,7 @@ dependencies = [
 [[package]]
 name = "weft-ui"
 version = "0.0.0"
+source = "git+ssh://git@github.com/lcm7341/weft.git?branch=main#17f247b5902e8c1fd0b9b905e91fe12566a99bc0"
 dependencies = [
  "weft-core",
  "weft-gfx",

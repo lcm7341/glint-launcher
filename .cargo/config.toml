@@ -1,0 +1,3 @@
+# weft is a private repo: fetch it with the system git so its ssh keys work
+[net]
+git-fetch-with-cli = true
