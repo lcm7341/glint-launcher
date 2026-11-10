@@ -9,6 +9,35 @@ pub struct Settings {
     pub default_instance: Option<InstanceName>,
     pub steam_username: Option<String>,
     pub favorites: Vec<InstanceName>,
+    pub new_instance_save: NewInstanceSave,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NewInstanceSave {
+    Link,
+    #[default]
+    Own,
+    Ask,
+}
+
+impl NewInstanceSave {
+    pub const ALL: [Self; 3] = [Self::Link, Self::Own, Self::Ask];
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Link => "Main save",
+            Self::Own => "Own save",
+            Self::Ask => "Ask",
+        }
+    }
+
+    fn key(self) -> &'static str {
+        match self {
+            Self::Link => "link",
+            Self::Own => "own",
+            Self::Ask => "ask",
+        }
+    }
 }
 
 impl Settings {
@@ -41,6 +70,17 @@ impl Settings {
                     })?);
                 }
                 "steam-username" => settings.steam_username = Some(value.to_owned()),
+                "new-instance-save" => {
+                    settings.new_instance_save = NewInstanceSave::ALL
+                        .into_iter()
+                        .find(|save| save.key() == value)
+                        .ok_or_else(|| {
+                            ParseError::new(format!(
+                                "line {}: new-instance-save is \"{value}\", not link, own or ask",
+                                index + 1
+                            ))
+                        })?;
+                }
                 "favorite" => settings.favorites.push(
                     value
                         .parse()
@@ -62,6 +102,10 @@ impl Settings {
         }
         for favorite in &self.favorites {
             text.push_str(&format!("favorite {favorite}\n"));
+        }
+        if self.new_instance_save != NewInstanceSave::default() {
+            let save = self.new_instance_save.key();
+            text.push_str(&format!("new-instance-save {save}\n"));
         }
         text
     }

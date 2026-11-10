@@ -8,6 +8,8 @@ pub struct InstanceConfig {
     pub version: GdVersion,
     pub platform: GdPlatform,
     pub game_folder: Option<PathBuf>,
+    /// Plays with the main GD save instead of its own
+    pub linked: bool,
 }
 
 impl InstanceConfig {
@@ -16,12 +18,21 @@ impl InstanceConfig {
             version,
             platform,
             game_folder: None,
+            linked: false,
         }
     }
 
+    /// An imported install is the main game, so it starts linked
     #[must_use]
     pub fn with_game_folder(mut self, folder: impl Into<PathBuf>) -> Self {
         self.game_folder = Some(folder.into());
+        self.linked = true;
+        self
+    }
+
+    #[must_use]
+    pub fn with_linked(mut self, linked: bool) -> Self {
+        self.linked = linked;
         self
     }
 
@@ -29,6 +40,7 @@ impl InstanceConfig {
         let mut version = None;
         let mut platform = None;
         let mut game_folder = None;
+        let mut linked = None;
         for (index, line) in text.lines().enumerate() {
             let line_number = index + 1;
             let line = line.trim();
@@ -45,6 +57,17 @@ impl InstanceConfig {
                 "version" => version = Some(value.parse().map_err(at_line)?),
                 "platform" => platform = Some(value.parse().map_err(at_line)?),
                 "game-folder" => game_folder = Some(PathBuf::from(value)),
+                "save" => {
+                    linked = Some(match value {
+                        "linked" => true,
+                        "own" => false,
+                        _ => {
+                            return Err(at_line(ParseError::new(format!(
+                                "save is \"{value}\", not linked or own"
+                            ))));
+                        }
+                    });
+                }
                 _ => {
                     return Err(at_line(ParseError::new(format!(
                         "unknown setting \"{key}\""
@@ -56,6 +79,8 @@ impl InstanceConfig {
         Ok(Self {
             version: version.ok_or_else(|| missing("version"))?,
             platform: platform.ok_or_else(|| missing("platform"))?,
+            // configs from before linking: imported installs used the main save
+            linked: linked.unwrap_or(game_folder.is_some()),
             game_folder,
         })
     }
@@ -65,6 +90,8 @@ impl InstanceConfig {
         if let Some(folder) = &self.game_folder {
             text.push_str(&format!("game-folder {}\n", folder.display()));
         }
+        let save = if self.linked { "linked" } else { "own" };
+        text.push_str(&format!("save {save}\n"));
         text
     }
 }

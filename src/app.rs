@@ -5,7 +5,7 @@ use crate::gd::{Catalog, GdVersion};
 use crate::instances::InstanceName;
 use crate::instances::{Instance, InstanceError};
 use crate::paths::DataDir;
-use crate::settings::Settings;
+use crate::settings::{NewInstanceSave, Settings};
 
 use crate::platform::FolderOpener;
 
@@ -37,6 +37,8 @@ mod existing;
 mod folders;
 mod mods;
 mod play;
+mod save_backups;
+pub(crate) use save_backups::ago;
 mod updates;
 mod windows_save;
 mod windows_steam;
@@ -45,9 +47,9 @@ mod wine;
 use downloads::Downloads;
 pub(crate) use mods::ModLoader;
 use mods::ModManager;
-pub(crate) use mods::{ModChange, ModsState};
+pub(crate) use mods::{EchoState, ModChange, ModsState};
 use play::PlaySession;
-pub(crate) use play::launch_blocker_message;
+pub(crate) use play::{SaveMode, launch_blocker_message};
 use updates::Updater;
 
 use wine::WineSupport;
@@ -76,10 +78,10 @@ impl App {
             app.settings = Settings::load(data_dir);
         }
         if app.library.data_dir().is_none() {
-            app.activity.notice(Notice::failed(
-                "Glint's application data directory is unavailable",
-            ));
+            app.activity
+                .notice(Notice::failed("Glint can't find its data folder"));
         }
+        app.mods.fetch_echo(&notify);
         app.refresh();
         app.adopt_steam_install();
         app.finish_save_swap();
@@ -104,6 +106,10 @@ impl App {
 
     pub(crate) fn is_favorite(&self, name: &InstanceName) -> bool {
         self.settings.favorites.contains(name)
+    }
+
+    pub(crate) fn new_instance_save(&self) -> NewInstanceSave {
+        self.settings.new_instance_save
     }
 
     pub(crate) fn default_instance(&self) -> Option<&InstanceName> {
@@ -179,6 +185,7 @@ impl App {
     }
 
     pub(crate) fn poll(&mut self) {
+        self.mods.poll_echo(&mut self.activity);
         self.poll_depot_fetch();
         self.poll_download();
         self.poll_game();
@@ -198,12 +205,44 @@ impl App {
         }
         self.sync_settings(&action);
         let notice = match action {
-            Action::Create { name, entry } => self.library.create(name, entry, &mut self.activity),
+            Action::Create {
+                name,
+                entry,
+                linked,
+            } => {
+                let linked = linked && self.link_blocker(entry.platform, &entry.version).is_none();
+                self.library.create(name, entry, linked, &mut self.activity)
+            }
+            Action::SetLinked { instance, linked } => {
+                let blocker = match self.find(&instance) {
+                    Some(Ok(found)) if linked => {
+                        self.link_blocker(found.config().platform, &found.config().version)
+                    }
+                    _ => None,
+                };
+                if let Some(blocker) = blocker {
+                    Some(Notice::failed(blocker))
+                } else {
+                    self.library
+                        .set_linked(&instance, linked, &mut self.activity)
+                }
+            }
+            Action::RestoreBackup { instance, backup } => self.restore_backup(&instance, &backup),
+            Action::CopyMainSave(instance) => self.copy_main_save(&instance),
+            Action::SetNewInstanceSave(save) => {
+                self.settings.new_instance_save = save;
+                self.save_settings();
+                None
+            }
             Action::Rename { from, to } => self.library.rename(&from, to, &mut self.activity),
             Action::Delete(name) => self.library.delete(&name, &mut self.activity),
             Action::Download(name) => self.start_download(&name),
             Action::InstallGeode(name) => self.start_geode_install(&name),
             Action::RemoveGeode(name) => self.remove_geode_from(&name),
+            Action::Mod {
+                instance,
+                change: ModChange::InstallEcho,
+            } => self.start_echo_install(&instance),
             Action::Mod { instance, change } => self.change_mods(&instance, change),
             Action::AddExisting(folder) => {
                 let notice = self.add_existing(&folder, None);
@@ -249,7 +288,7 @@ impl App {
     }
 
     pub(crate) fn short_folder(&self, instance: &Instance) -> String {
-        if instance.is_linked() {
+        if instance.is_imported() {
             return self.short_path(&instance.game_dir());
         }
         self.short_path(instance.folder())

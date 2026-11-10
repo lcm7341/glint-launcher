@@ -63,7 +63,7 @@ impl InstanceStore {
                 name: name.clone(),
                 reason,
             })?;
-        follow_linked_version(&mut config, &path);
+        follow_imported_version(&mut config, &path);
         Ok(Instance::new(name.clone(), config, folder))
     }
 
@@ -110,6 +110,19 @@ impl InstanceStore {
         Ok(Instance::new(to, instance.config().clone(), target))
     }
 
+    pub fn set_linked(&self, name: &InstanceName, linked: bool) -> Result<Instance, InstanceError> {
+        let instance = self.load(name)?;
+        let config = instance.config().clone().with_linked(linked);
+        let path = instance.config_path();
+        fs::write(&path, config.to_text())
+            .map_err(|error| InstanceError::io("write", path, error))?;
+        Ok(Instance::new(
+            name.clone(),
+            config,
+            instance.folder().to_path_buf(),
+        ))
+    }
+
     pub fn delete(&self, name: &InstanceName) -> Result<(), InstanceError> {
         let folder = self.data_dir.instance_dir(name);
         if !folder.is_dir() {
@@ -131,7 +144,7 @@ impl InstanceStore {
     }
 }
 
-fn follow_linked_version(config: &mut InstanceConfig, config_path: &Path) {
+fn follow_imported_version(config: &mut InstanceConfig, config_path: &Path) {
     let Some(folder) = &config.game_folder else {
         return;
     };
@@ -145,7 +158,7 @@ fn follow_linked_version(config: &mut InstanceConfig, config_path: &Path) {
 }
 
 fn fill_new_instance(instance: &Instance) -> Result<(), InstanceError> {
-    let own_game_dir = (!instance.is_linked()).then(|| instance.game_dir());
+    let own_game_dir = (!instance.is_imported()).then(|| instance.game_dir());
     for dir in own_game_dir.into_iter().chain([instance.save_dir()]) {
         fs::create_dir(&dir)
             .map_err(|error| InstanceError::io("create the folder", &dir, error))?;

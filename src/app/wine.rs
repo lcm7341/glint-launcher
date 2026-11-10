@@ -55,15 +55,13 @@ impl WineSupport {
 
     pub(super) fn start_setup(&mut self, activity: &mut Activity) -> Option<Notice> {
         if self.setup.is_some() {
-            return Some(Notice::failed("Already setting up"));
+            return Some(Notice::failed("Setup is running"));
         }
         if needs_rosetta() {
             return Some(rosetta_notice());
         }
         let (Some(tools_dir), Some(data_dir)) = (self.tools_dir(), self.data_dir.as_ref()) else {
-            return Some(Notice::failed(
-                "Glint's application data directory is unavailable",
-            ));
+            return Some(Notice::failed("Glint can't find its data folder"));
         };
         let prefix = data_dir.wine_dir();
         let step = Arc::new(Mutex::new(SetupStep::MakingWineFolder));
@@ -98,16 +96,14 @@ impl WineSupport {
             }));
         }
         if !wine_steam.is_steam_signed_in() {
-            return Err(Some(Notice::failed(
-                "Steam for Windows isn't signed in yet",
-            )));
+            return Err(Some(Notice::failed("Sign in to Steam for Windows first")));
         }
         if !has_drm {
             let started = GameProcess::start_wine(
                 &wine_steam,
                 &instance.game_dir(),
                 &instance.save_dir(),
-                !instance.is_linked(),
+                !instance.is_imported(),
                 notify,
             );
             return Ok((started, "with Wine".to_owned()));
@@ -135,7 +131,7 @@ impl WineSupport {
             return None;
         }
         if library.is_installing_gd() {
-            return Some(Notice::done("Steam is still installing GD"));
+            return Some(Notice::done("Steam is installing GD"));
         }
         if let Err(error) = library.queue_gd_install() {
             return Some(Notice::failed(format!(

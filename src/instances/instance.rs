@@ -76,8 +76,12 @@ impl Instance {
         game_dir(&self.config, &self.folder)
     }
 
-    pub fn is_linked(&self) -> bool {
+    pub fn is_imported(&self) -> bool {
         self.config.game_folder.is_some()
+    }
+
+    pub fn is_linked(&self) -> bool {
+        self.config.linked
     }
 
     pub fn save_dir(&self) -> PathBuf {

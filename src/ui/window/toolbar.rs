@@ -48,6 +48,9 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
                 window.app.refresh_found();
                 window.dialog = Some(Dialog::AddExisting(Default::default()));
             }
+            if ui.button("Settings…").muted().name("Settings").clicked() {
+                window.dialog = Some(Dialog::Settings);
+            }
             ui.spacer();
             ui.text_input(&mut window.filter)
                 .id(super::filter_id())

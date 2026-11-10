@@ -27,7 +27,7 @@ impl App {
 
     pub(super) fn open_instance_folder(&mut self, name: &InstanceName) -> Option<Notice> {
         let folder = match self.find(name) {
-            Some(Ok(instance)) if instance.is_linked() => instance.game_dir(),
+            Some(Ok(instance)) if instance.is_imported() => instance.game_dir(),
             _ => self.library.data_dir()?.instance_dir(name),
         };
         self.open_folder(&folder)
@@ -46,7 +46,7 @@ impl App {
         };
         let folder = self.gd_save_dir(instance);
         if !folder.is_dir() {
-            return Some(Notice::failed(format!("\"{name}\" has no save yet")));
+            return Some(Notice::failed(format!("\"{name}\" has no save")));
         }
         self.open_folder(&folder)
     }

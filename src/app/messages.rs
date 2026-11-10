@@ -1,6 +1,7 @@
 use super::ModChange;
 use crate::gd::CatalogEntry;
 use crate::instances::InstanceName;
+use crate::settings::NewInstanceSave;
 use std::path::PathBuf;
 
 #[derive(Clone)]
@@ -8,6 +9,17 @@ pub(crate) enum Action {
     Create {
         name: Option<InstanceName>,
         entry: CatalogEntry,
+        linked: bool,
+    },
+    SetLinked {
+        instance: InstanceName,
+        linked: bool,
+    },
+    SetNewInstanceSave(NewInstanceSave),
+    CopyMainSave(InstanceName),
+    RestoreBackup {
+        instance: InstanceName,
+        backup: PathBuf,
     },
     Rename {
         from: InstanceName,

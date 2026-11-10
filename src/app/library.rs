@@ -20,9 +20,10 @@ impl InstanceLibrary {
         &mut self,
         name: Option<InstanceName>,
         entry: CatalogEntry,
+        linked: bool,
         activity: &mut Activity,
     ) -> Option<Notice> {
-        let notice = self.create_files(name, entry);
+        let notice = self.create_files(name, entry, linked);
         self.refresh(activity);
         notice
     }
@@ -35,6 +36,21 @@ impl InstanceLibrary {
         let notice = self.rename_files(from, to);
         self.refresh(activity);
         notice
+    }
+    pub(super) fn set_linked(
+        &mut self,
+        name: &InstanceName,
+        linked: bool,
+        activity: &mut Activity,
+    ) -> Option<Notice> {
+        let store = self.store.as_ref()?;
+        let notice = match store.set_linked(name, linked) {
+            Ok(_) if linked => Notice::done(format!("\"{name}\" uses your main save now")),
+            Ok(_) => Notice::done(format!("\"{name}\" uses its own save now")),
+            Err(error) => Notice::failed(format!("Couldn't change the save: {error}")),
+        };
+        self.refresh(activity);
+        Some(notice)
     }
     pub(super) fn delete(
         &mut self,
@@ -62,7 +78,12 @@ impl InstanceLibrary {
     pub(super) fn found(&self) -> &[FoundInstall] {
         &self.found
     }
-    fn create_files(&mut self, name: Option<InstanceName>, entry: CatalogEntry) -> Option<Notice> {
+    fn create_files(
+        &mut self,
+        name: Option<InstanceName>,
+        entry: CatalogEntry,
+        linked: bool,
+    ) -> Option<Notice> {
         let store = self.store.as_ref()?;
         let name = match name {
             Some(name) => name,
@@ -74,7 +95,7 @@ impl InstanceLibrary {
                 name
             }
         };
-        let config = InstanceConfig::new(entry.version, entry.platform);
+        let config = InstanceConfig::new(entry.version, entry.platform).with_linked(linked);
         Some(match store.create(name, config) {
             Ok(instance) => Notice::done(format!("Created \"{}\"", instance.name())),
             Err(error) => Notice::failed(format!("Couldn't create the instance: {error}")),
@@ -120,7 +141,7 @@ impl InstanceLibrary {
     // not at startup, reading desktop/documents/downloads pops a permission prompt on macos
     pub(crate) fn refresh_found(&mut self, steam_install: Option<PathBuf>) {
         let folders: Vec<PathBuf> = steam_install.into_iter().chain(search_folders()).collect();
-        let linked: Vec<PathBuf> = self
+        let imported: Vec<PathBuf> = self
             .instances
             .iter()
             .filter_map(|entry| entry.as_ref().ok()?.config().game_folder.clone())
@@ -128,7 +149,7 @@ impl InstanceLibrary {
         self.found = find_installs(&folders)
             .into_iter()
             .filter(|install| {
-                !linked
+                !imported
                     .iter()
                     .any(|folder| same_folder(folder, &install.folder))
             })
@@ -145,7 +166,7 @@ impl InstanceLibrary {
         };
         if recognize_install(&install).is_err()
             || store.data_dir().steam_removed_path().exists()
-            || self.is_linked_anywhere(&install)
+            || self.is_imported_anywhere(&install)
         {
             return;
         }
@@ -203,7 +224,7 @@ impl InstanceLibrary {
         }
     }
 
-    fn is_linked_anywhere(&self, install: &Path) -> bool {
+    fn is_imported_anywhere(&self, install: &Path) -> bool {
         self.instances.iter().any(|entry| {
             entry
                 .as_ref()

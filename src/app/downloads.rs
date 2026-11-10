@@ -83,7 +83,7 @@ impl Downloads {
         activity: &mut Activity,
     ) -> Option<Notice> {
         if self.active.is_some() {
-            return Some(Notice::failed("Already downloading"));
+            return Some(Notice::failed("A download is running"));
         }
         let instance = plan.instance;
         let entry = plan.entry;
@@ -91,7 +91,7 @@ impl Downloads {
         let Some(program) = self.program.clone() else {
             return Some(Notice::failed("DepotDownloader not found"));
         };
-        let starts_fresh = !instance.is_linked() && instance.has_empty_game_dir();
+        let starts_fresh = !instance.is_imported() && instance.has_empty_game_dir();
         if let Err(error) = instance.mark_download_started() {
             return Some(Notice::failed(format!(
                 "Couldn't prepare {}: {error}",

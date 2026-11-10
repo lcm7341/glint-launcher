@@ -1,4 +1,5 @@
 pub(crate) mod add_existing;
+mod saves;
 pub(crate) mod steam_sign_in;
 
 use std::path::PathBuf;
@@ -7,6 +8,7 @@ use crate::gd::{CatalogEntry, GdPlatform, GdVersion};
 use crate::instances::Instance;
 use crate::instances::InstanceName;
 use crate::launch::WINE_VERSION;
+use crate::settings::NewInstanceSave;
 use weft::prelude::{Fixed, Grow, Justify, Ui};
 
 use crate::app::{Action, App};
@@ -22,6 +24,7 @@ pub(crate) enum Dialog {
         name: String,
         platform: GdPlatform,
         release: Option<GdVersion>,
+        linked: bool,
     },
     Rename {
         from: InstanceName,
@@ -29,9 +32,11 @@ pub(crate) enum Dialog {
     },
     Delete {
         name: InstanceName,
-        linked: Option<PathBuf>,
+        imported: Option<PathBuf>,
     },
     WineSetup(InstanceName),
+    Settings,
+    Backups(InstanceName),
     AddExisting(AddExisting),
     GeodeIndex(GeodeIndex),
 }
@@ -43,6 +48,7 @@ impl Dialog {
             name: String::new(),
             platform,
             release: newest(launcher, platform),
+            linked: false,
         }
     }
 
@@ -56,7 +62,7 @@ impl Dialog {
     pub(crate) fn delete(instance: &Instance) -> Self {
         Dialog::Delete {
             name: instance.name().clone(),
-            linked: instance.config().game_folder.clone(),
+            imported: instance.config().game_folder.clone(),
         }
     }
 }
@@ -80,10 +86,13 @@ pub(crate) fn show(ui: &mut Ui, window: &mut Window) {
             name,
             platform,
             release,
-        } => show_new_instance(ui, window, &mut open, name, platform, release),
+            linked,
+        } => show_new_instance(ui, window, &mut open, name, platform, release, linked),
         Dialog::Rename { from, name } => show_rename(ui, window, &mut open, from, name),
-        Dialog::Delete { name, linked } => show_delete(ui, window, &mut open, name, linked),
+        Dialog::Delete { name, imported } => show_delete(ui, window, &mut open, name, imported),
         Dialog::WineSetup(name) => show_wine_setup(ui, window, &mut open, name),
+        Dialog::Settings => show_settings(ui, window, &mut open),
+        Dialog::Backups(name) => saves::show_backups(ui, window, &mut open, name),
         Dialog::AddExisting(add) => {
             crate::ui::dialogs::add_existing::show(ui, window, &mut open, add)
         }
@@ -103,6 +112,7 @@ fn show_new_instance(
     name: &mut String,
     platform: &mut GdPlatform,
     release: &mut Option<GdVersion>,
+    linked: &mut bool,
 ) {
     let launcher = &window.app;
     let mut create = None;
@@ -158,21 +168,11 @@ fn show_new_instance(
                             .show();
                     }
                     None => {
-                        ui.label("None in the catalog yet").muted();
+                        ui.label("None in the catalog").muted();
                     }
                 }
-                let pre_2_2_on_mac = launcher.native_platform() == Some(GdPlatform::MacOs)
-                    && release.as_ref().is_some_and(is_encrypted_mac_build);
-                if pre_2_2_on_mac {
-                    empty_label(ui);
-                    ui.label(match platform {
-                        GdPlatform::MacOs => {
-                            "The macOS build before 2.2 is encrypted and won't open on a Mac"
-                        }
-                        GdPlatform::Windows => "Pre-2.2 plays the Windows build through Wine",
-                    })
-                    .muted();
-                }
+                show_mac_hint(ui, launcher, *platform, release.as_ref());
+                show_save_choice(ui, launcher, *platform, release.as_ref(), linked);
             });
 
             let find = |platform| {
@@ -193,8 +193,50 @@ fn show_new_instance(
         window.chosen = name
             .clone()
             .or_else(|| window.app.default_name(&entry.version));
-        window.actions.push(Action::Create { name, entry });
+        let linked = match window.app.new_instance_save() {
+            NewInstanceSave::Link => true,
+            NewInstanceSave::Own => false,
+            NewInstanceSave::Ask => *linked,
+        };
+        window.actions.push(Action::Create {
+            name,
+            entry,
+            linked,
+        });
     }
+}
+
+fn show_mac_hint(ui: &mut Ui, launcher: &App, platform: GdPlatform, release: Option<&GdVersion>) {
+    let pre_2_2_on_mac = launcher.native_platform() == Some(GdPlatform::MacOs)
+        && release.is_some_and(is_encrypted_mac_build);
+    if !pre_2_2_on_mac {
+        return;
+    }
+    empty_label(ui);
+    ui.label(match platform {
+        GdPlatform::MacOs => "The macOS build before 2.2 is encrypted and won't open on a Mac",
+        GdPlatform::Windows => "Pre-2.2 plays the Windows build through Wine",
+    })
+    .muted();
+}
+
+fn show_save_choice(
+    ui: &mut Ui,
+    launcher: &App,
+    platform: GdPlatform,
+    release: Option<&GdVersion>,
+    linked: &mut bool,
+) {
+    let can_link =
+        release.is_some_and(|version| launcher.link_blocker(platform, version).is_none());
+    if launcher.new_instance_save() != NewInstanceSave::Ask || !can_link {
+        return;
+    }
+    field_label(ui, "Save");
+    ui.segmented(linked, [false, true])
+        .labels(["Its own", "Main GD save"])
+        .name("Save")
+        .show();
 }
 
 // a pre-2.2 macOS build won't open, so a Mac asks instead of quietly picking Windows
@@ -294,13 +336,16 @@ fn show_delete(
     window: &mut Window,
     open: &mut bool,
     name: &InstanceName,
-    linked: &Option<PathBuf>,
+    imported: &Option<PathBuf>,
 ) {
     ui.modal(open)
         .title(format!("Delete \"{name}\"?"))
         .show(|ui| {
-            match linked {
-                Some(install) => ui.label(format!("Files in {} are kept.", home_relative(install))),
+            match imported {
+                Some(install) => ui.label(format!(
+                    "Glint keeps the files in {}.",
+                    home_relative(install)
+                )),
                 None => ui.label("Deletes the game files, mods and save."),
             };
             ui.row().justify(Justify::End).gap(8).show(|ui| {
@@ -315,19 +360,46 @@ fn show_delete(
         });
 }
 
+fn show_settings(ui: &mut Ui, window: &mut Window, open: &mut bool) {
+    ui.modal(open)
+        .title("Settings")
+        .style(|style| style.width(Fixed(DIALOG_WIDTH)))
+        .show(|ui| {
+            let mut save = window.app.new_instance_save();
+            show_form(ui, |ui| {
+                field_label(ui, "New instances");
+                ui.segmented(&mut save, NewInstanceSave::ALL)
+                    .labels(NewInstanceSave::ALL.map(NewInstanceSave::display_name))
+                    .name("New instances")
+                    .show();
+                empty_label(ui);
+                ui.label("A linked instance plays with your main GD save")
+                    .muted();
+            });
+            if save != window.app.new_instance_save() {
+                window.actions.push(Action::SetNewInstanceSave(save));
+            }
+            ui.row().justify(Justify::End).gap(8).show(|ui| {
+                if ui.button("Done").primary().clicked() {
+                    ui.close_overlay();
+                }
+            });
+        });
+}
+
 fn show_wine_setup(ui: &mut Ui, window: &mut Window, open: &mut bool, name: &InstanceName) {
     ui.modal(open)
         .title("Set up old versions")
         .style(|style| style.width(Fixed(DIALOG_WIDTH)))
         .show(|ui| {
-            ui.label(
-                "Pre-2.2 versions run their Windows build on a Mac. Setting up does this once:",
-            );
+            ui.label("On a Mac, pre-2.2 versions run their Windows build. Setup runs once:");
             ui.label(format!("1. Downloads Wine {WINE_VERSION} (~215 MB)"));
             ui.label("2. Installs Steam for Windows inside Wine");
             ui.label("3. Opens it so you can sign in");
-            ui.label("Takes ~3 GB in Glint's folder. Your normal Steam and saves aren't touched.")
-                .muted();
+            ui.label(
+                "Takes ~3 GB in Glint's folder. Glint leaves your normal Steam and saves alone.",
+            )
+            .muted();
             ui.row().justify(Justify::End).gap(8).show(|ui| {
                 if ui.button("Cancel").clicked() {
                     ui.close_overlay();

@@ -2,7 +2,7 @@ use crate::gd::GdVersion;
 use crate::instances::{GameFiles, Instance, InstanceError};
 use crate::mods::DllLoader;
 use weft::core::{Corners, Rect, RoundedRect};
-use weft::prelude::{Align, Color, Fixed, Grow, Ui, vec2};
+use weft::prelude::{Align, Color, Fit, Grow, Ui, vec2};
 use weft::ui::{Column, SortDirection, TableSort};
 
 use super::Window;
@@ -47,10 +47,10 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
         .table(rows.len())
         .id(table_id)
         .name("Instance list")
-        .column_with(Column::new("Name").width(Grow(3)).min_width(90).sortable())
-        .column_with(Column::new("Version").width(Fixed(84.0)).sortable())
-        .column_with(Column::new("Mods").width(Grow(2)).min_width(70))
-        .column_with(Column::new("State").width(Grow(2)).min_width(80))
+        .column_with(Column::new("Name").width(Fit).min_width(90).sortable())
+        .column_with(Column::new("Version").width(Fit).sortable())
+        .column_with(Column::new("Mods").width(Grow(1)).min_width(90))
+        .column_with(Column::new("State").width(Grow(1)).min_width(90))
         .row_height(26)
         .selectable()
         .striped(true)
@@ -115,7 +115,7 @@ fn rows(window: &Window, sort: Option<TableSort>) -> Vec<Row> {
             name: broken_name(error),
             version: None,
             mods: String::new(),
-            state: "Can't be read".to_owned(),
+            state: "Unreadable".to_owned(),
             is_active: false,
             is_favorite: false,
             can_change: false,
@@ -192,9 +192,9 @@ fn state_text(window: &Window, instance: &Instance) -> (String, bool) {
         return (format!("Downloading{percent}"), true);
     }
     let text = match instance.game_files() {
-        GameFiles::Present if instance.is_linked() => "Ready, linked",
+        GameFiles::Present if instance.is_imported() => "Ready, imported",
         GameFiles::Present => "Ready",
-        GameFiles::Incomplete => "Partly downloaded",
+        GameFiles::Incomplete => "Unfinished download",
         GameFiles::Missing => "Not downloaded",
     };
     (text.to_owned(), false)
