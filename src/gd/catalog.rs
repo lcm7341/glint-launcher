@@ -1,6 +1,7 @@
 use std::cmp::Reverse;
 
-use crate::gd::{CatalogEntry, CatalogError, GdPlatform, GdVersion, ManifestId, ParseError};
+use crate::gd::{CatalogEntry, CatalogError, GdPlatform, GdVersion, ManifestId};
+use crate::parse_error::ParseError;
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Catalog {

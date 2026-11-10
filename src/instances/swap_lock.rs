@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::gd::InstanceName;
+use crate::instances::InstanceName;
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct SwapLock {

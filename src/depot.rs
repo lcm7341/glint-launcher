@@ -8,9 +8,6 @@ mod manifest_listing;
 mod manifest_listing_fetch;
 mod output_line;
 mod seed_folder;
-mod steam_folder;
-mod steam_library;
-mod steam_shortcuts;
 
 pub use depot_event::DepotEvent;
 pub use depot_process::{DepotProcess, DepotUpdate};
@@ -22,6 +19,3 @@ pub use manifest_listing::ManifestListing;
 pub use manifest_listing_fetch::fetch_manifest_listing;
 pub use output_line::parse_output_line;
 pub use seed_folder::seed_folder;
-pub use steam_folder::steam_folder;
-pub use steam_library::steam_app_install;
-pub use steam_shortcuts::{SteamShortcut, shortcut_compat_dir, steam_shortcuts};

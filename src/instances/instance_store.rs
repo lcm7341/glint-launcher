@@ -2,10 +2,11 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 
-use crate::gd::{InstanceConfig, InstanceName};
+use crate::instances::{InstanceConfig, InstanceName};
 
 use crate::instances::instance::config_path;
-use crate::instances::{DataDir, Instance, InstanceError, recognize_install};
+use crate::instances::{Instance, InstanceError, recognize_install};
+use crate::paths::DataDir;
 
 #[derive(Clone)]
 pub struct InstanceStore {

@@ -7,12 +7,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use crate::gd::GD_APP_ID;
+use crate::gd::{GD_APP_ID, GdPlatform};
 
-use crate::launch::steam_library::is_steam_gd_running;
-use crate::launch::{
-    LaunchRequest, MAC_PROGRAM, WineSteam, mac_game_command, windows_game_command,
-};
+use crate::launch::wine::is_steam_gd_running;
+use crate::launch::{LaunchRequest, WineSteam};
 
 pub const STEAM_APP_ID_FILE: &str = "steam_appid.txt";
 
@@ -41,7 +39,10 @@ impl GameProcess {
         if may_write_game_dir {
             write_app_id_file(game_dir)?;
         }
-        Self::watch(windows_game_command(game_dir), notify)
+        Self::watch(
+            crate::platform::native_game_command(GdPlatform::Windows, game_dir, None)?,
+            notify,
+        )
     }
 
     pub fn start_mac(
@@ -49,11 +50,10 @@ impl GameProcess {
         own_home: Option<&Path>,
         notify: impl Fn() + Send + 'static,
     ) -> io::Result<Self> {
-        if let Some(home) = own_home {
-            make_runnable(&game_dir.join(MAC_PROGRAM))?;
-            fs::create_dir_all(home)?;
-        }
-        Self::watch(mac_game_command(game_dir, own_home), notify)
+        Self::watch(
+            crate::platform::native_game_command(GdPlatform::MacOs, game_dir, own_home)?,
+            notify,
+        )
     }
 
     pub fn start_wine(
@@ -133,22 +133,5 @@ fn write_app_id_file(game_dir: &Path) -> io::Result<()> {
     if !app_id_file.exists() {
         fs::write(&app_id_file, format!("{GD_APP_ID}\n"))?;
     }
-    Ok(())
-}
-
-#[cfg(unix)]
-fn make_runnable(program: &Path) -> io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-
-    let mut permissions = fs::metadata(program)?.permissions();
-    if permissions.mode() & 0o111 == 0 {
-        permissions.set_mode(permissions.mode() | 0o111);
-        fs::set_permissions(program, permissions)?;
-    }
-    Ok(())
-}
-
-#[cfg(not(unix))]
-fn make_runnable(_program: &Path) -> io::Result<()> {
     Ok(())
 }

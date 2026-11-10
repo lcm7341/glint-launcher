@@ -2,11 +2,11 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::gd::InstanceName;
+use crate::instances::InstanceName;
 
-use crate::instances::DataDir;
 use crate::instances::SaveSwapError;
 use crate::instances::swap_lock::{SwapLock, SwapState};
+use crate::paths::DataDir;
 
 // only renames so the save is never half moved
 #[derive(Clone, PartialEq, Eq)]
@@ -191,5 +191,118 @@ fn io_error(action: &'static str, path: impl Into<PathBuf>, source: io::Error) -
         action,
         path: path.into(),
         source,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SaveSwap;
+    use crate::instances::swap_lock::{SwapLock, SwapState};
+    use crate::test_support::TestDir;
+    use std::fs;
+
+    #[test]
+    fn swap_round_trip() {
+        let dir = TestDir::new();
+        let data = dir.data_dir();
+        fs::create_dir_all(data.root()).unwrap();
+        let usual = dir.path().join("usual");
+        let save = dir.path().join("instance-save");
+        fs::create_dir(&usual).unwrap();
+        fs::create_dir(&save).unwrap();
+        fs::write(usual.join("CCGameManager.dat"), b"original").unwrap();
+        fs::write(save.join("CCGameManager.dat"), b"instance").unwrap();
+        let swap = SaveSwap::new(&data, &usual);
+        let name = "game".parse().unwrap();
+        swap.swap_in(&name, &save)
+            .unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(
+            fs::read(usual.join("CCGameManager.dat")).unwrap(),
+            b"instance"
+        );
+        assert!(swap.has_unfinished());
+        fs::write(usual.join("CCGameManager.dat"), b"updated").unwrap();
+        let restored = swap.restore().unwrap_or_else(|error| panic!("{error}"));
+        assert!(restored == Some(name));
+        assert_eq!(
+            fs::read(usual.join("CCGameManager.dat")).unwrap(),
+            b"original"
+        );
+        assert_eq!(
+            fs::read(save.join("CCGameManager.dat")).unwrap(),
+            b"updated"
+        );
+        assert!(!swap.has_unfinished());
+    }
+
+    #[test]
+    fn interrupted_recovery() {
+        let dir = TestDir::new();
+        let data = dir.data_dir();
+        fs::create_dir_all(data.root()).unwrap();
+        let usual = dir.path().join("usual");
+        let parked = dir.path().join("usual.glint-usual");
+        let save = dir.path().join("instance-save");
+        fs::create_dir(&parked).unwrap();
+        fs::create_dir(&save).unwrap();
+        fs::write(parked.join("CCGameManager.dat"), b"original").unwrap();
+        fs::write(save.join("CCGameManager.dat"), b"instance").unwrap();
+        SwapLock {
+            instance: "game".parse().unwrap(),
+            save: save.clone(),
+            had_usual: true,
+            state: SwapState::SwappingIn,
+        }
+        .write(&data.save_swap_lock_path())
+        .unwrap();
+        SaveSwap::new(&data, &usual)
+            .restore()
+            .unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(
+            fs::read(usual.join("CCGameManager.dat")).unwrap(),
+            b"original"
+        );
+        assert_eq!(
+            fs::read(save.join("CCGameManager.dat")).unwrap(),
+            b"instance"
+        );
+        assert!(!data.save_swap_lock_path().exists());
+    }
+
+    #[test]
+    fn ambiguous_recovery() {
+        let dir = TestDir::new();
+        let data = dir.data_dir();
+        fs::create_dir_all(data.root()).unwrap();
+        let usual = dir.path().join("usual");
+        let parked = dir.path().join("usual.glint-usual");
+        let save = dir.path().join("instance-save");
+        for (path, content) in [
+            (&usual, b"active"),
+            (&parked, b"parked"),
+            (&save, b"copied"),
+        ] {
+            fs::create_dir(path).unwrap();
+            fs::write(path.join("CCGameManager.dat"), content).unwrap();
+        }
+        SwapLock {
+            instance: "game".parse().unwrap(),
+            save: save.clone(),
+            had_usual: true,
+            state: SwapState::SwappedIn,
+        }
+        .write(&data.save_swap_lock_path())
+        .unwrap();
+        assert!(SaveSwap::new(&data, &usual).restore().is_err());
+        assert_eq!(
+            fs::read(usual.join("CCGameManager.dat")).unwrap(),
+            b"active"
+        );
+        assert_eq!(
+            fs::read(parked.join("CCGameManager.dat")).unwrap(),
+            b"parked"
+        );
+        assert_eq!(fs::read(save.join("CCGameManager.dat")).unwrap(), b"copied");
+        assert!(data.save_swap_lock_path().exists());
     }
 }
