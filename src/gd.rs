@@ -23,7 +23,6 @@ pub use steam_app::GD_APP_ID;
 pub use version::GdVersion;
 
 pub const WINDOWS_PROGRAM: &str = "GeometryDash.exe";
-pub const MAC_PROGRAM: &str = "Geometry Dash.app/Contents/MacOS/Geometry Dash";
 
 // drm wrapped: 1.9, 1.92, 2.113. not from 2.2074 on
 pub(crate) fn is_encrypted_mac_build(version: &GdVersion) -> bool {
