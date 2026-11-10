@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::gd::InstanceConfig;
+use crate::instances::InstanceConfig;
 
 use crate::instances::recognize_install;
 

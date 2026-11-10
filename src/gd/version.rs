@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
 
-use crate::gd::ParseError;
+use crate::parse_error::ParseError;
 
 // decimal, not semver: 2.113 < 2.2 < 2.2074
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

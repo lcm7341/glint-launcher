@@ -4,11 +4,12 @@ use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use crate::gd::{
-    GdPlatform, InstanceConfig, MACHO_HEAD_BYTES, PE_HEADER_BYTES, macho_slices, macho_uuid,
-    pe_timestamp, uuid_text, version_for_timestamp, version_for_uuid,
+    GdPlatform, MACHO_HEAD_BYTES, PE_HEADER_BYTES, macho_slices, macho_uuid, pe_timestamp,
+    uuid_text, version_for_timestamp, version_for_uuid,
 };
+use crate::instances::InstanceConfig;
 
-pub const WINDOWS_PROGRAM: &str = "GeometryDash.exe";
+use crate::gd::WINDOWS_PROGRAM;
 
 pub const MAC_APP: &str = "Geometry Dash.app";
 

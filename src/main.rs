@@ -1,42 +1,34 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod add_existing;
+mod app;
 mod depot;
-mod dialogs;
-mod download;
-mod folder_picker;
-mod form;
+mod format;
 mod gd;
-mod geode_index;
-mod geode_mods_view;
-mod glint_theme;
-mod icons;
 mod instances;
-mod job;
 mod launch;
-mod launcher;
-mod markdown_view;
 mod mods;
-mod mods_view;
-mod open_folder;
-mod play;
-mod qr_sign_in;
-mod sentence;
-mod window;
+mod parse_error;
+mod paths;
+mod platform;
+mod settings;
+mod steam;
+mod task;
+mod ui;
 
-use crate::glint_theme::glint_theme;
-use crate::launcher::Launcher;
-use crate::window::Window;
+use crate::app::App;
+use crate::ui::theme::glint_theme;
+use crate::ui::window::Window;
 
 pub(crate) const TITLE: &str = concat!("glint launcher | version ", env!("CARGO_PKG_VERSION"));
 
 pub(crate) const ICON_RGBA: &[u8] = include_bytes!("../assets/icons/glint-64.rgba");
 pub(crate) const ICON_SIDE: u32 = 64;
 
-pub(crate) const SYSTEM_BUTTONS: bool = cfg!(target_os = "macos");
+pub(crate) const SYSTEM_BUTTONS: bool =
+    matches!(platform::HostOs::CURRENT, platform::HostOs::MacOs);
 
 fn main() {
-    let app = weft::App::new()
+    let ui_app = weft::App::new()
         .title(TITLE)
         // has to match glint.desktop for the taskbar icon
         .app_id("glint")
@@ -46,11 +38,13 @@ fn main() {
         .resize_border(6.0)
         .size(1100.0, 720.0)
         .theme(glint_theme());
-    let wake = app.wake_handle();
-    let launcher = Launcher::new(move || {
+    let wake = ui_app.wake_handle();
+    let app = App::new(move || {
         wake.wake();
     });
-    let mut window = Window::new(launcher);
-    app.run_ui(move |ui| window.build(ui))
+    let mut window = Window::new(app);
+    ui_app
+        .run_ui(move |ui| window.build(ui))
         .expect("failed to open window");
 }
+

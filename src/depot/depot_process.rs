@@ -43,7 +43,7 @@ impl DepotProcess {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-        hide_console(&mut command);
+        crate::platform::hide_console(&mut command);
         let mut child = command.spawn()?;
         let stdout = child.stdout.take().expect("stdout was piped");
         let stderr = child.stderr.take().expect("stderr was piped");
@@ -89,17 +89,6 @@ impl Drop for DepotProcess {
         self.cancel();
     }
 }
-
-#[cfg(windows)]
-fn hide_console(command: &mut Command) {
-    use std::os::windows::process::CommandExt;
-
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    command.creation_flags(CREATE_NO_WINDOW);
-}
-
-#[cfg(not(windows))]
-fn hide_console(_command: &mut Command) {}
 
 fn forward_lines(output: impl Read, sender: &Sender<DepotUpdate>, notify: &dyn Fn()) {
     let mut reader = BufReader::new(output);
