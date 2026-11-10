@@ -75,6 +75,9 @@ impl App {
                 Err(notice) => return notice,
             }
         } else if route == LaunchRoute::Native {
+            if let Some(notice) = steam_needed_notice() {
+                return Some(notice);
+            }
             let started = match instance.config().platform {
                 GdPlatform::MacOs => GameProcess::start_mac(
                     &instance.game_dir(),
@@ -82,9 +85,6 @@ impl App {
                     notify,
                 ),
                 GdPlatform::Windows => {
-                    if let Some(notice) = steam_needed_notice() {
-                        return Some(notice);
-                    }
                     is_save_swapped = match self.swap_save_in(instance) {
                         Ok(is_swapped) => is_swapped,
                         Err(reason) => return Some(Notice::failed(reason)),
