@@ -10,10 +10,10 @@ use std::sync::Arc;
 
 impl App {
     pub(crate) fn gd_save_dir(&self, instance: &Instance) -> PathBuf {
-        self.play.gd_save_dir(instance)
+        self.play.gd_save_dir(instance, self.save_mode(instance))
     }
     pub(crate) fn describe_save(&self, instance: &Instance) -> &'static str {
-        self.play.describe_save(instance)
+        self.play.describe_save(instance, self.save_mode(instance))
     }
     pub(crate) fn native_platform(&self) -> Option<GdPlatform> {
         self.play.native_platform()
@@ -44,7 +44,7 @@ impl App {
     }
     pub(in crate::app) fn start_game(&mut self, name: &InstanceName) -> Option<Notice> {
         if let Some(playing) = self.play.playing() {
-            return Some(Notice::failed(format!("\"{}\" is already open", playing)));
+            return Some(Notice::failed(format!("\"{}\" is open", playing)));
         }
         let Some(Ok(instance)) = self.library.find(name) else {
             return Some(Notice::failed(format!(
@@ -64,6 +64,12 @@ impl App {
                 )));
             }
         };
+        let instance = instance.clone();
+        if let Err(notice) = self.back_up_save_for(&instance) {
+            return Some(notice);
+        }
+        let instance = &instance;
+        let mode = self.save_mode(instance);
         let notify = Arc::clone(&self.notify);
         let notify = move || notify();
         let mut is_save_swapped = false;
@@ -81,22 +87,30 @@ impl App {
             let started = match instance.config().platform {
                 GdPlatform::MacOs => GameProcess::start_mac(
                     &instance.game_dir(),
-                    own_mac_home(instance).as_deref(),
+                    own_mac_home(instance, mode).as_deref(),
                     notify,
                 ),
                 GdPlatform::Windows => {
-                    is_save_swapped = match self.swap_save_in(instance) {
+                    is_save_swapped = match self.swap_save_in(instance, mode) {
                         Ok(is_swapped) => is_swapped,
                         Err(reason) => return Some(Notice::failed(reason)),
                     };
-                    GameProcess::start_windows(&instance.game_dir(), !instance.is_linked(), notify)
+                    GameProcess::start_windows(
+                        &instance.game_dir(),
+                        !instance.is_imported(),
+                        notify,
+                    )
                 }
             };
-            (started, "directly".to_owned())
+            (started, "as a native app".to_owned())
         } else {
-            let request = self.play.proton_request(instance)?;
+            // proton's steam.exe needs the real steam running, or gd hangs on load
+            if let Some(notice) = steam_needed_notice() {
+                return Some(notice);
+            }
+            let request = self.play.proton_request(instance, mode)?;
             (
-                GameProcess::start(&request, !instance.is_linked(), notify),
+                GameProcess::start(&request, !instance.is_imported(), notify),
                 format!("with {PROTON_NAME}"),
             )
         };
@@ -106,8 +120,8 @@ impl App {
                     "Starting \"{name}\" (Geometry Dash {}) {how}",
                     instance.config().version
                 ));
-                self.play
-                    .started(name.clone(), process, is_save_swapped, steam);
+                self.play.started(instance, process, is_save_swapped, steam);
+                self.note_main_save_version(instance);
                 None
             }
             Err(error) => {

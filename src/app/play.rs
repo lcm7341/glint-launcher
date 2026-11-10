@@ -2,8 +2,8 @@ use super::windows_save::usual_save_dir;
 use super::{Activity, Notice};
 use crate::gd::is_encrypted_mac_build;
 use crate::gd::{GD_APP_ID, GdPlatform, GdVersion};
+use crate::instances::Instance;
 use crate::instances::InstanceName;
-use crate::instances::{Instance, same_folder};
 use crate::launch::{
     GameProcess, LaunchRequest, PROTON_NAME, WineStatus, find_proton, find_runtime, has_steam_drm,
     is_running_in, wine_steam_running,
@@ -14,9 +14,12 @@ use crate::steam::{
 };
 use crate::task::Notify;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 mod coordinator;
+mod crash_log;
+use crate::format::home_relative;
+use crash_log::new_crash_log;
 mod running;
 use running::RunningGames;
 
@@ -24,6 +27,8 @@ struct Game {
     instance: InstanceName,
     process: GameProcess,
     started: Instant,
+    started_at: SystemTime,
+    game_dir: PathBuf,
     is_save_swapped: bool,
     steam: SteamCheck,
 }
@@ -51,6 +56,14 @@ impl SteamCheck {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SaveMode {
+    Own,
+    Linked,
+}
+
+const PROTON_SAVE: &str = "pfx/drive_c/users/steamuser/AppData/Local/GeometryDash";
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) enum SaveSource {
@@ -112,9 +125,13 @@ impl PlaySession {
             .unwrap_or_else(|| steam_folder.join("steamapps/common/Geometry Dash"));
         install.is_dir().then_some(install)
     }
-    pub(super) fn proton_request(&self, instance: &Instance) -> Option<LaunchRequest> {
+    pub(super) fn proton_request(
+        &self,
+        instance: &Instance,
+        mode: SaveMode,
+    ) -> Option<LaunchRequest> {
         let steam_folder = self.environment.steam_folder.as_ref()?;
-        let save_source = self.save_source(instance);
+        let save_source = self.save_source(instance, mode);
         // a prefix shared with steam keeps the proton steam runs it with
         let steams_tool = match &save_source {
             SaveSource::Steam(compat) | SaveSource::Shortcut(compat) => compat
@@ -142,57 +159,81 @@ impl PlaySession {
     }
     pub(super) fn started(
         &mut self,
-        instance: InstanceName,
+        instance: &Instance,
         process: GameProcess,
         is_save_swapped: bool,
         steam: SteamCheck,
     ) {
         self.game = Some(Game {
-            instance,
+            instance: instance.name().clone(),
             process,
             started: Instant::now(),
+            started_at: SystemTime::now(),
+            game_dir: instance.game_dir(),
             is_save_swapped,
             steam,
         });
     }
-    pub(super) fn save_source(&self, instance: &Instance) -> SaveSource {
-        let (Some(steam_folder), Some(game_folder)) = (
-            &self.environment.steam_folder,
-            &instance.config().game_folder,
-        ) else {
-            return SaveSource::Own;
-        };
-        let steam_compat = steam_folder
+    fn steam_compat(&self) -> Option<PathBuf> {
+        let compat = self
+            .environment
+            .steam_folder
+            .as_ref()?
             .join("steamapps")
             .join("compatdata")
             .join(GD_APP_ID.to_string());
-        let is_steams = self
-            .steam_install()
-            .is_some_and(|install| same_folder(&install, game_folder));
-        if is_steams && steam_compat.is_dir() {
-            return SaveSource::Steam(steam_compat);
-        }
-        match shortcut_compat_dir(steam_folder, &self.environment.shortcuts, game_folder) {
-            Some(compat) => SaveSource::Shortcut(compat),
-            None => SaveSource::Own,
-        }
+        compat.is_dir().then_some(compat)
     }
 
-    pub(super) fn gd_save_dir(&self, instance: &Instance) -> PathBuf {
+    pub(super) fn main_save_dir(&self, instance: &Instance) -> Option<PathBuf> {
+        if self.is_windows_on_mac(instance) {
+            return None;
+        }
+        if self.is_native(instance) {
+            return match instance.config().platform {
+                GdPlatform::MacOs => crate::platform::native_save_dir(None),
+                GdPlatform::Windows => usual_save_dir(),
+            };
+        }
+        Some(self.steam_compat()?.join(PROTON_SAVE))
+    }
+
+    pub(super) fn save_source(&self, instance: &Instance, mode: SaveMode) -> SaveSource {
+        let Some(steam_folder) = &self.environment.steam_folder else {
+            return SaveSource::Own;
+        };
+        if mode == SaveMode::Linked
+            && let Some(compat) = self.steam_compat()
+        {
+            return SaveSource::Steam(compat);
+        }
+        // an imported folder with a steam shortcut keeps that shortcut's save
+        instance
+            .config()
+            .game_folder
+            .as_ref()
+            .and_then(|folder| {
+                shortcut_compat_dir(steam_folder, &self.environment.shortcuts, folder)
+            })
+            .map_or(SaveSource::Own, SaveSource::Shortcut)
+    }
+
+    pub(super) fn gd_save_dir(&self, instance: &Instance, mode: SaveMode) -> PathBuf {
         if self.is_windows_on_mac(instance) {
             return instance.save_dir();
         }
         if self.is_native(instance) {
+            let shares_main = mode == SaveMode::Linked;
             return match instance.config().platform {
                 GdPlatform::MacOs => {
-                    crate::platform::native_save_dir(own_mac_home(instance).as_deref())
-                        .unwrap_or_default()
+                    let home = (!shares_main).then(|| instance.mac_home_dir());
+                    crate::platform::native_save_dir(home.as_deref()).unwrap_or_default()
                 }
                 GdPlatform::Windows => {
                     let is_swapped_in = self.game.as_ref().is_some_and(|game| {
                         game.is_save_swapped && game.instance == *instance.name()
                     });
-                    if instance.is_linked() || is_swapped_in {
+                    if shares_main || is_swapped_in {
                         usual_save_dir().unwrap_or_default()
                     } else {
                         instance.save_dir()
@@ -200,23 +241,20 @@ impl PlaySession {
                 }
             };
         }
-        self.save_source(instance)
+        self.save_source(instance, mode)
             .compat_dir(instance)
-            .join("pfx/drive_c/users/steamuser/AppData/Local/GeometryDash")
+            .join(PROTON_SAVE)
     }
 
-    pub(super) fn describe_save(&self, instance: &Instance) -> &'static str {
+    pub(super) fn describe_save(&self, instance: &Instance, mode: SaveMode) -> &'static str {
         if self.is_windows_on_mac(instance) {
             return "Its own";
         }
-        if self.is_native(instance) {
-            return if instance.is_linked() {
-                "Shared with Steam"
-            } else {
-                "Its own"
-            };
+        match mode {
+            SaveMode::Linked if self.is_native(instance) => "Your main save",
+            SaveMode::Own if self.is_native(instance) => "Its own",
+            SaveMode::Own | SaveMode::Linked => self.save_source(instance, mode).describe(),
         }
-        self.save_source(instance).describe()
     }
 
     pub(super) fn native_platform(&self) -> Option<GdPlatform> {
@@ -276,11 +314,19 @@ impl PlaySession {
         let name = game.instance.clone();
         let is_save_swapped = game.is_save_swapped;
         let steam = game.steam;
+        let crash_log = new_crash_log(&game.game_dir, game.started_at);
         self.game = None;
+        if let Some(log) = crash_log {
+            activity.notice(Notice::failed(format!(
+                "{name} crashed. Its crash log is {}",
+                home_relative(&log)
+            )));
+            return is_save_swapped;
+        }
         match quick.then(|| steam.quick_exit_reason()).flatten() {
             Some(reason) => {
                 activity.notice(Notice::failed(format!(
-                    "{name} closed right away. {reason}"
+                    "{name} closed within seconds. {reason}"
                 )));
             }
             None => activity.push_log(format!("\"{name}\" closed")),
@@ -288,8 +334,11 @@ impl PlaySession {
         is_save_swapped
     }
 }
-fn own_mac_home(instance: &Instance) -> Option<PathBuf> {
-    (!instance.is_linked()).then(|| instance.mac_home_dir())
+fn own_mac_home(instance: &Instance, mode: SaveMode) -> Option<PathBuf> {
+    match mode {
+        SaveMode::Own => Some(instance.mac_home_dir()),
+        SaveMode::Linked => None,
+    }
 }
 
 pub(crate) fn launch_blocker_message(blocker: LaunchBlocker, version: &GdVersion) -> String {
@@ -297,11 +346,11 @@ pub(crate) fn launch_blocker_message(blocker: LaunchBlocker, version: &GdVersion
         LaunchBlocker::EncryptedMacBuild => {
             format!("Pre-2.2 mac builds are encrypted. Use a Windows instance of {version}")
         }
-        LaunchBlocker::MacBuildOnOtherHost => "Mac builds only run on a Mac".to_owned(),
+        LaunchBlocker::MacBuildOnOtherHost => "Mac builds need a Mac".to_owned(),
         LaunchBlocker::SteamMissing => "Steam not found".to_owned(),
         LaunchBlocker::ProtonMissing => format!("Install {PROTON_NAME} in Steam first"),
         LaunchBlocker::SteamDrmWithProton => {
-            format!("{version} has Steam DRM and only runs from Steam's own install")
+            format!("{version} has Steam DRM, so it runs from Steam's install")
         }
     }
 }
