@@ -9,7 +9,9 @@ use crate::launch::{
     is_running_in,
 };
 use crate::launch::{LaunchBlocker, LaunchFacts, LaunchReadiness};
-use crate::steam::{SteamShortcut, shortcut_compat_dir, steam_app_install, steam_shortcuts};
+use crate::steam::{
+    SteamShortcut, shortcut_compat_dir, steam_app_install, steam_compat_tool, steam_shortcuts,
+};
 use crate::task::Notify;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -87,14 +89,31 @@ impl PlaySession {
         install.is_dir().then_some(install)
     }
     pub(super) fn proton_request(&self, instance: &Instance) -> Option<LaunchRequest> {
+        let steam_folder = self.environment.steam_folder.as_ref()?;
+        let save_source = self.save_source(instance);
+        // a prefix shared with steam keeps the proton steam runs it with
+        let steams_tool = match &save_source {
+            SaveSource::Steam(compat) | SaveSource::Shortcut(compat) => compat
+                .file_name()
+                .and_then(|app_id| app_id.to_str()?.parse().ok())
+                .and_then(|app_id| steam_compat_tool(steam_folder, app_id)),
+            SaveSource::Own => None,
+        };
+        let (proton, runtime) = match steams_tool {
+            Some(tool) => (tool.proton, tool.runtime),
+            None => (
+                self.environment.proton.clone()?,
+                self.environment.runtime.clone(),
+            ),
+        };
         Some(
             LaunchRequest::new(
-                self.environment.proton.as_ref()?,
-                self.environment.steam_folder.as_ref()?,
+                proton,
+                steam_folder,
                 instance.game_dir(),
-                self.save_source(instance).compat_dir(instance),
+                save_source.compat_dir(instance),
             )
-            .with_runtime(self.environment.runtime.clone()),
+            .with_runtime(runtime),
         )
     }
     pub(super) fn started(
