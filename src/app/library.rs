@@ -237,4 +237,3 @@ fn search_folders() -> Vec<PathBuf> {
         .map(|folder| home.join(folder))
         .collect()
 }
-

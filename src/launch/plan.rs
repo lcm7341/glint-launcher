@@ -78,4 +78,3 @@ impl LaunchFacts {
         LaunchReadiness::Ready(LaunchRoute::Proton)
     }
 }
-

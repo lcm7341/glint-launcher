@@ -128,4 +128,3 @@ fn skip_comments(mut text: &str) -> &str {
         }
     }
 }
-

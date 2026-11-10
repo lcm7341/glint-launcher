@@ -170,4 +170,3 @@ fn rosetta_notice() -> Notice {
         "Wine needs Rosetta. Run {INSTALL_ROSETTA} in Terminal"
     ))
 }
-

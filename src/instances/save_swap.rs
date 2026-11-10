@@ -193,4 +193,3 @@ fn io_error(action: &'static str, path: impl Into<PathBuf>, source: io::Error) -
         source,
     }
 }
-

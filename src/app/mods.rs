@@ -90,4 +90,3 @@ impl ModManager {
         self.cache.extensions_enabled(instance)
     }
 }
-

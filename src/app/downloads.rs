@@ -198,4 +198,3 @@ fn closer(target: &GdVersion, a: &GdVersion, b: &GdVersion) -> Ordering {
 fn as_decimal(version: &GdVersion) -> f64 {
     version.to_string().parse().unwrap_or(0.0)
 }
-

@@ -117,4 +117,3 @@ pub(crate) fn native_game_command(
     }
     host::native_game_command(game_dir, home)
 }
-

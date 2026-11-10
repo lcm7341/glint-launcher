@@ -177,4 +177,3 @@ impl ModManager {
 pub(super) fn first_geode_version() -> crate::gd::GdVersion {
     FIRST_GEODE_VERSION.parse().expect("a fixed version parses")
 }
-
