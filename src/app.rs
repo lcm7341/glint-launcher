@@ -22,6 +22,7 @@ pub(crate) struct App {
     wine: WineSupport,
     mods: ModManager,
     folder_opener: FolderOpener,
+    updater: Updater,
 }
 
 mod activity;
@@ -36,6 +37,7 @@ mod existing;
 mod folders;
 mod mods;
 mod play;
+mod updates;
 mod windows_save;
 mod windows_steam;
 mod wine;
@@ -46,6 +48,7 @@ use mods::ModManager;
 pub(crate) use mods::{ModChange, ModsState};
 use play::PlaySession;
 pub(crate) use play::launch_blocker_message;
+use updates::Updater;
 
 use wine::WineSupport;
 
@@ -67,6 +70,7 @@ impl App {
             wine,
             mods: ModManager::default(),
             folder_opener: FolderOpener::default(),
+            updater: Updater::start(&notify),
         };
         if let Some(data_dir) = app.library.data_dir() {
             app.settings = Settings::load(data_dir);
@@ -181,6 +185,7 @@ impl App {
         self.wine.poll(&mut self.activity);
         self.mods.poll_install(&mut self.activity);
         self.poll_mods();
+        self.updater.poll(&mut self.activity);
     }
 
     pub(crate) fn apply(&mut self, action: Action) {
@@ -234,6 +239,7 @@ impl App {
             Action::OpenFolder(name) => self.open_instance_folder(&name),
             Action::OpenLink(url) => self.open_link(&url),
             Action::OpenSaveFolder(name) => self.open_save_folder(&name),
+            Action::InstallUpdate => self.start_update(),
         };
         self.activity.extend(notice);
     }

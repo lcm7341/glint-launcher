@@ -14,6 +14,7 @@ mod settings;
 mod steam;
 mod task;
 mod ui;
+mod update;
 
 use crate::app::App;
 use crate::ui::theme::glint_theme;

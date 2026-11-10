@@ -66,7 +66,7 @@ impl Window {
             .width(Grow(1))
             .height(Grow(1))
             .show(|ui| {
-                title_bar::show(ui, &self.icon, crate::SYSTEM_BUTTONS);
+                title_bar::show(ui, self, crate::SYSTEM_BUTTONS);
                 toolbar::show(ui, self);
                 ui.separator();
                 if self.show_log {
@@ -88,6 +88,9 @@ impl Window {
         crate::ui::dialogs::show(ui, self);
         crate::ui::dialogs::steam_sign_in::qr_dialog(ui, &self.app, &mut self.actions);
         self.apply(ui);
+        if self.app.should_quit() {
+            ui.quit();
+        }
     }
 
     fn instances(&self) -> impl Iterator<Item = &Instance> {

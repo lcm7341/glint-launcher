@@ -19,6 +19,7 @@ pub(crate) enum Action {
     OpenSaveFolder(InstanceName),
     Download(InstanceName),
     CancelDownload,
+    InstallUpdate,
     SignOut,
     SetDefault(InstanceName),
     ToggleFavorite(InstanceName),

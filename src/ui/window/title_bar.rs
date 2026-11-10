@@ -1,6 +1,8 @@
 use weft::core::{Rect, Vec2};
 use weft::prelude::{Align, Color, FontWeight, Grow, Insets, Sense, Ui, vec2};
 
+use super::Window;
+use crate::app::Action;
 use crate::ui::icons::Icon;
 use crate::ui::theme::{HOVERED, MUTED, PRESSED, TEXT};
 
@@ -8,7 +10,7 @@ const HEIGHT: f32 = 34.0;
 
 const ICON: f32 = 16.0;
 
-pub(super) fn show(ui: &mut Ui, icon: &weft::gfx::Image, system_buttons: bool) {
+pub(super) fn show(ui: &mut Ui, window: &mut Window, system_buttons: bool) {
     let start = if system_buttons { 80.0 } else { 10.0 };
     let bar = ui
         .row()
@@ -19,11 +21,12 @@ pub(super) fn show(ui: &mut Ui, icon: &weft::gfx::Image, system_buttons: bool) {
         .style(|style| style.min_height(HEIGHT))
         .sense(Sense::CLICK_AND_DRAG)
         .show(|ui| {
-            ui.image(icon).size(ICON, ICON).name("Glint");
+            ui.image(&window.icon).size(ICON, ICON).name("Glint");
             ui.label(crate::TITLE)
                 .font_size(12)
                 .truncate()
                 .style(|style| style.color(MUTED).weight(FontWeight::MEDIUM).width(Grow(1)));
+            update_button(ui, window);
             if !system_buttons {
                 window_buttons(ui);
             }
@@ -33,6 +36,30 @@ pub(super) fn show(ui: &mut Ui, icon: &weft::gfx::Image, system_buttons: bool) {
         ui.toggle_maximized();
     } else if bar.drag_started() {
         ui.drag_window();
+    }
+}
+
+fn update_button(ui: &mut Ui, window: &mut Window) {
+    if let Some(version) = window.app.installing_update() {
+        ui.label(format!("Updating to {version}…"))
+            .font_size(12)
+            .muted()
+            .wrap(false);
+        return;
+    }
+    let Some(version) = window.app.update_available() else {
+        return;
+    };
+    let blocker = window.app.update_blocker();
+    if ui
+        .button(format!("Update to {version}"))
+        .primary()
+        .height(24)
+        .enabled(blocker.is_none())
+        .tooltip(blocker.unwrap_or("Download the new glint and restart"))
+        .clicked()
+    {
+        window.actions.push(Action::InstallUpdate);
     }
 }
 
