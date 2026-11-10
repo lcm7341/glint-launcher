@@ -3,7 +3,7 @@ pub(crate) mod steam_sign_in;
 
 use std::path::PathBuf;
 
-use crate::gd::{GdPlatform, GdVersion};
+use crate::gd::{CatalogEntry, GdPlatform, GdVersion};
 use crate::instances::Instance;
 use crate::instances::InstanceName;
 use crate::launch::WINE_VERSION;
@@ -161,41 +161,33 @@ fn show_new_instance(
                         ui.label("None in the catalog yet").muted();
                     }
                 }
-                let on_mac = launcher.native_platform() == Some(GdPlatform::MacOs);
-                if let Some(version) = release.as_ref()
-                    && on_mac
-                    && is_encrypted_mac_build(version)
-                {
-                    let has_windows = launcher
-                        .catalog()
-                        .find(version, GdPlatform::Windows)
-                        .is_some();
-                    if *platform == GdPlatform::MacOs && has_windows {
-                        *platform = GdPlatform::Windows;
-                    }
-                    if *platform == GdPlatform::Windows {
-                        empty_label(ui);
-                        ui.label("Pre-2.2 plays the Windows build on a Mac").muted();
-                    }
+                let pre_2_2_on_mac = launcher.native_platform() == Some(GdPlatform::MacOs)
+                    && release.as_ref().is_some_and(is_encrypted_mac_build);
+                if pre_2_2_on_mac {
+                    empty_label(ui);
+                    ui.label(match platform {
+                        GdPlatform::MacOs => {
+                            "The macOS build before 2.2 is encrypted and won't open on a Mac"
+                        }
+                        GdPlatform::Windows => "Pre-2.2 plays the Windows build through Wine",
+                    })
+                    .muted();
                 }
             });
 
-            let entry = release
-                .as_ref()
-                .and_then(|version| launcher.catalog().find(version, *platform));
-            ui.row().justify(Justify::End).gap(8).show(|ui| {
-                if ui.button("Cancel").clicked() {
-                    ui.close_overlay();
-                }
-                let can_create = entry.is_some() && typed_name.is_ok();
-                let clicked = ui.button("Create").primary().enabled(can_create).clicked();
-                if let (Some(entry), Ok(typed)) = (entry, typed_name)
-                    && (clicked || submitted)
-                {
-                    create = Some((typed, entry.clone()));
-                    ui.close_overlay();
-                }
-            });
+            let find = |platform| {
+                release
+                    .as_ref()
+                    .and_then(|version| launcher.catalog().find(version, platform))
+            };
+            let entry = find(*platform);
+            // ask rather than quietly swapping in the windows build
+            let wine_entry = (*platform == GdPlatform::MacOs
+                && launcher.native_platform() == Some(GdPlatform::MacOs)
+                && release.as_ref().is_some_and(is_encrypted_mac_build))
+            .then(|| find(GdPlatform::Windows))
+            .flatten();
+            create = create_buttons(ui, entry, wine_entry, typed_name.ok(), submitted);
         });
     if let Some((name, entry)) = create {
         window.chosen = name
@@ -203,6 +195,49 @@ fn show_new_instance(
             .or_else(|| window.app.default_name(&entry.version));
         window.actions.push(Action::Create { name, entry });
     }
+}
+
+// a pre-2.2 macOS build won't open, so a Mac asks instead of quietly picking Windows
+fn create_buttons(
+    ui: &mut Ui,
+    entry: Option<&CatalogEntry>,
+    wine_entry: Option<&CatalogEntry>,
+    name: Option<Option<InstanceName>>,
+    submitted: bool,
+) -> Option<(Option<InstanceName>, CatalogEntry)> {
+    let mut chosen = None;
+    ui.row().justify(Justify::End).gap(8).show(|ui| {
+        if ui.button("Cancel").clicked() {
+            ui.close_overlay();
+        }
+        if let Some(windows) = wine_entry {
+            if ui
+                .button("Use the macOS build")
+                .enabled(entry.is_some() && name.is_some())
+                .tooltip("It won't open")
+                .clicked()
+            {
+                chosen = entry;
+            }
+            let wine = ui
+                .button("Run through Wine")
+                .primary()
+                .enabled(name.is_some())
+                .clicked();
+            if wine || submitted {
+                chosen = Some(windows);
+            }
+        } else {
+            let can_create = entry.is_some() && name.is_some();
+            let clicked = ui.button("Create").primary().enabled(can_create).clicked();
+            if clicked || submitted {
+                chosen = entry;
+            }
+        }
+    });
+    let picked = (name?, chosen?.clone());
+    ui.close_overlay();
+    Some(picked)
 }
 
 fn show_rename(

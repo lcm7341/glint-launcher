@@ -36,10 +36,18 @@ pub(super) enum SteamCheck {
 }
 
 impl SteamCheck {
-    fn is_running(self) -> Option<bool> {
+    /// Why the game closed right away, or None if steam looks fine
+    fn quick_exit_reason(self) -> Option<&'static str> {
         match self {
-            Self::Host => crate::platform::steam_running().ok(),
-            Self::Wine => Some(wine_steam_running()),
+            // closing the game yourself is quick too, so only blame steam if it's really gone
+            Self::Host => match crate::platform::steam_running() {
+                Ok(true) => None,
+                Ok(false) => Some("Steam isn't running"),
+                Err(_) => Some("Is Steam running?"),
+            },
+            // under wine it's usually a signed out steam, which stays running
+            Self::Wine if wine_steam_running() => Some("Is Steam signed in?"),
+            Self::Wine => Some("Steam for Windows isn't running"),
         }
     }
 }
@@ -269,13 +277,7 @@ impl PlaySession {
         let is_save_swapped = game.is_save_swapped;
         let steam = game.steam;
         self.game = None;
-        // closing the game yourself is quick too, so only blame steam if it's really gone
-        let failure = match quick.then(|| steam.is_running()) {
-            None | Some(Some(true)) => None,
-            Some(Some(false)) => Some("Steam isn't running"),
-            Some(None) => Some("Is Steam running?"),
-        };
-        match failure {
+        match quick.then(|| steam.quick_exit_reason()).flatten() {
             Some(reason) => {
                 activity.notice(Notice::failed(format!(
                     "{name} closed right away. {reason}"
