@@ -31,7 +31,7 @@ pub(crate) fn fetch_latest() -> Result<Release, UpdateError> {
     let status = response.status().as_u16();
     if status == 404 {
         return Err(UpdateError::Api(
-            "echogd.com has no Glint release".to_owned(),
+            "glint-launcher.com has no Glint release".to_owned(),
         ));
     }
     if status != 200 {

@@ -10,8 +10,8 @@ pub(crate) use version::Version;
 
 use std::{fmt, io};
 
-/// echogd.com serves this with each release
-pub(crate) const MANIFEST_URL: &str = "https://echogd.com/download/glint/latest.json";
+/// glint-launcher.com serves this with each release
+pub(crate) const MANIFEST_URL: &str = "https://glint-launcher.com/download/latest.json";
 
 pub(crate) fn current_version() -> Version {
     env!("CARGO_PKG_VERSION")
@@ -48,7 +48,7 @@ pub(crate) enum UpdateError {
 impl fmt::Display for UpdateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Network(error) => write!(f, "couldn't reach echogd.com: {error}"),
+            Self::Network(error) => write!(f, "couldn't reach glint-launcher.com: {error}"),
             Self::Api(error) => f.write_str(error),
             Self::Checksum => f.write_str("the download doesn't match its checksum"),
             Self::Archive(error) => write!(f, "the download is broken: {error}"),
