@@ -7,24 +7,16 @@ use std::{fs, io};
 
 pub(in crate::platform) const MAC_PROGRAM: &str = "Geometry Dash.app/Contents/MacOS/Geometry Dash";
 
-// CFFIXED_USER_HOME sets the save folder
-pub(in crate::platform) fn command(game_dir: &Path, home: Option<&Path>) -> Command {
+pub(in crate::platform) fn command(game_dir: &Path) -> Command {
     let mut command = Command::new(game_dir.join(MAC_PROGRAM));
     command
         .current_dir(game_dir)
         .env("SteamAppId", GD_APP_ID.to_string());
-    if let Some(home) = home {
-        command.env("CFFIXED_USER_HOME", home);
-    }
     command
 }
 
-pub(in crate::platform) fn prepare(game_dir: &Path, home: Option<&Path>) -> io::Result<()> {
-    if let Some(home) = home {
-        make_runnable(&game_dir.join(MAC_PROGRAM))?;
-        fs::create_dir_all(home)?;
-    }
-    Ok(())
+pub(in crate::platform) fn prepare(game_dir: &Path) -> io::Result<()> {
+    make_runnable(&game_dir.join(MAC_PROGRAM))
 }
 #[cfg(unix)]
 fn make_runnable(program: &Path) -> io::Result<()> {

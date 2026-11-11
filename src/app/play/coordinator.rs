@@ -1,4 +1,4 @@
-use super::{SteamCheck, launch_blocker_message, own_mac_home};
+use super::{SteamCheck, launch_blocker_message};
 use crate::app::windows_steam::steam_needed_notice;
 use crate::app::{App, Notice};
 use crate::gd::GdPlatform;
@@ -87,23 +87,17 @@ impl App {
             if let Some(notice) = steam_needed_notice() {
                 return Some(notice);
             }
+            is_save_swapped = match self.swap_save_in(instance, mode) {
+                Ok(is_swapped) => is_swapped,
+                Err(reason) => return Some(Notice::failed(reason)),
+            };
             let started = match instance.config().platform {
-                GdPlatform::MacOs => GameProcess::start_mac(
+                GdPlatform::MacOs => GameProcess::start_mac(&instance.game_dir(), notify),
+                GdPlatform::Windows => GameProcess::start_windows(
                     &instance.game_dir(),
-                    own_mac_home(instance, mode).as_deref(),
+                    !instance.is_imported(),
                     notify,
                 ),
-                GdPlatform::Windows => {
-                    is_save_swapped = match self.swap_save_in(instance, mode) {
-                        Ok(is_swapped) => is_swapped,
-                        Err(reason) => return Some(Notice::failed(reason)),
-                    };
-                    GameProcess::start_windows(
-                        &instance.game_dir(),
-                        !instance.is_imported(),
-                        notify,
-                    )
-                }
             };
             (started, "as a native app".to_owned())
         } else {

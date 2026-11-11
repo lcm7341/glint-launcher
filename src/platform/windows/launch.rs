@@ -6,7 +6,7 @@ use crate::gd::GD_APP_ID;
 use crate::gd::WINDOWS_PROGRAM;
 use std::io;
 
-pub(in crate::platform) fn command(game_dir: &Path, _home: Option<&Path>) -> Command {
+pub(in crate::platform) fn command(game_dir: &Path) -> Command {
     let mut command = Command::new(game_dir.join(WINDOWS_PROGRAM));
     command
         .current_dir(game_dir)
@@ -14,6 +14,6 @@ pub(in crate::platform) fn command(game_dir: &Path, _home: Option<&Path>) -> Com
     command
 }
 
-pub(in crate::platform) fn prepare(_game_dir: &Path, _home: Option<&Path>) -> io::Result<()> {
+pub(in crate::platform) fn prepare(_game_dir: &Path) -> io::Result<()> {
     Ok(())
 }

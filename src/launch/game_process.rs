@@ -40,18 +40,14 @@ impl GameProcess {
             write_app_id_file(game_dir)?;
         }
         Self::watch(
-            crate::platform::native_game_command(GdPlatform::Windows, game_dir, None)?,
+            crate::platform::native_game_command(GdPlatform::Windows, game_dir)?,
             notify,
         )
     }
 
-    pub fn start_mac(
-        game_dir: &Path,
-        own_home: Option<&Path>,
-        notify: impl Fn() + Send + 'static,
-    ) -> io::Result<Self> {
+    pub fn start_mac(game_dir: &Path, notify: impl Fn() + Send + 'static) -> io::Result<Self> {
         Self::watch(
-            crate::platform::native_game_command(GdPlatform::MacOs, game_dir, own_home)?,
+            crate::platform::native_game_command(GdPlatform::MacOs, game_dir)?,
             notify,
         )
     }

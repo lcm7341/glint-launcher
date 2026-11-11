@@ -107,7 +107,6 @@ pub(crate) fn hide_console(command: &mut Command) {
 pub(crate) fn native_game_command(
     build: crate::gd::GdPlatform,
     game_dir: &Path,
-    home: Option<&Path>,
 ) -> io::Result<Command> {
     if HostOs::CURRENT.native_game_platform() != Some(build) {
         return Err(io::Error::new(
@@ -115,5 +114,5 @@ pub(crate) fn native_game_command(
             "this build can't run on this computer",
         ));
     }
-    host::native_game_command(game_dir, home)
+    host::native_game_command(game_dir)
 }

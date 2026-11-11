@@ -6,7 +6,6 @@ pub(in crate::platform) mod steam;
 
 pub(in crate::platform) fn native_game_command(
     _game_dir: &std::path::Path,
-    _home: Option<&std::path::Path>,
 ) -> std::io::Result<std::process::Command> {
     Err(std::io::Error::new(
         std::io::ErrorKind::Unsupported,

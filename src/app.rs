@@ -39,8 +39,8 @@ mod mods;
 mod play;
 mod save_backups;
 pub(crate) use save_backups::ago;
+mod save_swap;
 mod updates;
-mod windows_save;
 mod windows_steam;
 mod wine;
 
@@ -85,6 +85,7 @@ impl App {
         app.refresh();
         app.adopt_steam_install();
         app.finish_save_swap();
+        app.move_old_mac_saves();
         app
     }
 

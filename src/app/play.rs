@@ -1,4 +1,4 @@
-use super::windows_save::usual_save_dir;
+use super::save_swap::usual_save_dir;
 use super::{Activity, Notice};
 use crate::gd::is_encrypted_mac_build;
 use crate::gd::{GD_APP_ID, GdPlatform, GdVersion};
@@ -223,21 +223,15 @@ impl PlaySession {
         }
         if self.is_native(instance) {
             let shares_main = mode == SaveMode::Linked;
-            return match instance.config().platform {
-                GdPlatform::MacOs => {
-                    let home = (!shares_main).then(|| instance.mac_home_dir());
-                    crate::platform::native_save_dir(home.as_deref()).unwrap_or_default()
-                }
-                GdPlatform::Windows => {
-                    let is_swapped_in = self.game.as_ref().is_some_and(|game| {
-                        game.is_save_swapped && game.instance == *instance.name()
-                    });
-                    if shares_main || is_swapped_in {
-                        usual_save_dir().unwrap_or_default()
-                    } else {
-                        instance.save_dir()
-                    }
-                }
+            // one save folder, per-instance saves swap in
+            let is_swapped_in = self
+                .game
+                .as_ref()
+                .is_some_and(|game| game.is_save_swapped && game.instance == *instance.name());
+            return if shares_main || is_swapped_in {
+                usual_save_dir().unwrap_or_default()
+            } else {
+                instance.save_dir()
             };
         }
         self.save_source(instance, mode)
@@ -331,12 +325,6 @@ impl PlaySession {
             None => activity.push_log(format!("\"{name}\" closed")),
         }
         is_save_swapped
-    }
-}
-fn own_mac_home(instance: &Instance, mode: SaveMode) -> Option<PathBuf> {
-    match mode {
-        SaveMode::Own => Some(instance.mac_home_dir()),
-        SaveMode::Linked => None,
     }
 }
 
