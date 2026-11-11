@@ -599,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "glint"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "flate2",
  "pollster",
