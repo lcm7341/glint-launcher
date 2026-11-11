@@ -2,7 +2,6 @@ use weft::core::{Rect, Vec2};
 use weft::prelude::{Align, Color, FontWeight, Grow, Insets, Sense, Ui, vec2};
 
 use super::Window;
-use crate::app::Action;
 use crate::ui::icons::Icon;
 use crate::ui::theme::{HOVERED, MUTED, PRESSED, TEXT};
 
@@ -11,13 +10,17 @@ const HEIGHT: f32 = 34.0;
 const ICON: f32 = 16.0;
 
 pub(super) fn show(ui: &mut Ui, window: &mut Window, system_buttons: bool) {
-    let start = if system_buttons { 80.0 } else { 10.0 };
+    let (start, end) = if system_buttons {
+        (80.0, 8.0)
+    } else {
+        (10.0, 0.0)
+    };
     let bar = ui
         .row()
         .width(Grow(1))
         .gap(8)
         .align(Align::Center)
-        .padding(Insets::new(0.0, 0.0, 0.0, start))
+        .padding(Insets::new(0.0, end, 0.0, start))
         .style(|style| style.min_height(HEIGHT))
         .sense(Sense::CLICK_AND_DRAG)
         .show(|ui| {
@@ -39,28 +42,12 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window, system_buttons: bool) {
     }
 }
 
-fn update_button(ui: &mut Ui, window: &mut Window) {
+fn update_button(ui: &mut Ui, window: &Window) {
     if let Some(version) = window.app.installing_update() {
         ui.label(format!("Updating to {version}…"))
             .font_size(12)
             .muted()
             .wrap(false);
-        return;
-    }
-    let Some(version) = window.app.update_available() else {
-        return;
-    };
-    let blocker = window.app.update_blocker();
-    let about = format!("Download and install Glint {version}");
-    if ui
-        .button(format!("Update to {version}"))
-        .primary()
-        .height(24)
-        .enabled(blocker.is_none())
-        .tooltip(blocker.unwrap_or(&about))
-        .clicked()
-    {
-        window.actions.push(Action::InstallUpdate);
     }
 }
 

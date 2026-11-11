@@ -26,6 +26,7 @@ pub(crate) struct Window {
     log_seen: usize,
     filter: String,
     show_steam_account: bool,
+    update_offered: bool,
     steam_answer: String,
     pub(crate) dialog: Option<Dialog>,
     pub(crate) actions: Vec<Action>,
@@ -49,6 +50,7 @@ impl Window {
             log_seen: 0,
             filter: String::new(),
             show_steam_account: false,
+            update_offered: false,
             steam_answer: String::new(),
             dialog,
             actions: Vec::new(),
@@ -67,6 +69,13 @@ impl Window {
         self.actions.clear();
         self.mod_picker.poll(&mut self.actions);
         self.handle_shortcuts(ui);
+        if !self.update_offered
+            && self.dialog.is_none()
+            && let Some(version) = self.app.update_available()
+        {
+            self.update_offered = true;
+            self.dialog = Some(Dialog::Update(version));
+        }
 
         ui.column()
             .gap(0)

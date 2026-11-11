@@ -19,6 +19,7 @@ use crate::ui::dialogs::steam_sign_in::SignInForm;
 use crate::ui::form::{DIALOG_WIDTH, empty_label, field_label, show_field_hint, show_form};
 use crate::ui::mods::browse::GeodeIndex;
 use crate::ui::window::Window;
+use crate::update::{Version, current_version};
 
 pub(crate) enum Dialog {
     NewInstance {
@@ -42,6 +43,7 @@ pub(crate) enum Dialog {
     GeodeIndex(GeodeIndex),
     MoveToApplications,
     SteamSignIn(SignInForm),
+    Update(Version),
 }
 
 impl Dialog {
@@ -104,6 +106,7 @@ pub(crate) fn show(ui: &mut Ui, window: &mut Window) {
         }
         Dialog::MoveToApplications => show_move_to_applications(ui, window, &mut open),
         Dialog::SteamSignIn(form) => steam_sign_in::show_sign_in(ui, window, &mut open, form),
+        Dialog::Update(version) => show_update(ui, window, &mut open, *version),
     }
     if open && window.dialog.is_none() {
         window.dialog = Some(dialog);
@@ -433,6 +436,31 @@ fn show_move_to_applications(ui: &mut Ui, window: &mut Window, open: &mut bool) 
                 }
                 if ui.button("Move").primary().clicked() {
                     window.actions.push(Action::MoveToApplications);
+                    ui.close_overlay();
+                }
+            });
+        });
+}
+
+fn show_update(ui: &mut Ui, window: &mut Window, open: &mut bool, version: Version) {
+    let blocker = window.app.update_blocker();
+    ui.modal(open)
+        .title(format!("Glint update ({} -> {version})", current_version()))
+        .style(|style| style.width(Fixed(DIALOG_WIDTH)))
+        .show(|ui| {
+            ui.label("Glint restarts after updating.").muted();
+            ui.row().justify(Justify::End).gap(8).show(|ui| {
+                if ui.button("Not now").clicked() {
+                    ui.close_overlay();
+                }
+                if ui
+                    .button("Update")
+                    .primary()
+                    .enabled(blocker.is_none())
+                    .tooltip(blocker.unwrap_or("Download and install the update"))
+                    .clicked()
+                {
+                    window.actions.push(Action::InstallUpdate);
                     ui.close_overlay();
                 }
             });

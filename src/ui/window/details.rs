@@ -242,11 +242,7 @@ fn show_link(ui: &mut Ui, window: &mut Window, instance: &Instance) {
     let config = instance.config();
     let linked = window.app.save_mode(instance) == SaveMode::Linked;
     let blocker = window.app.link_blocker(config.platform, &config.version);
-    let value = match (linked, &blocker) {
-        (true, _) => "Yes".to_owned(),
-        (false, Some(reason)) => format!("No - {reason}"),
-        (false, None) => "No".to_owned(),
-    };
+    let value = if linked { "Yes" } else { "No" };
     let about = if linked {
         "Uses your main save"
     } else {
