@@ -24,7 +24,6 @@ struct Row {
     state: String,
     is_active: bool,
     is_favorite: bool,
-    can_change: bool,
 }
 
 pub(super) fn show(ui: &mut Ui, window: &mut Window) {
@@ -41,8 +40,6 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
         None => state.selection_mut().clear(),
     });
 
-    let dialog = &mut window.dialog;
-    let actions = &mut window.actions;
     let table = ui
         .table(rows.len())
         .id(table_id)
@@ -55,7 +52,7 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
         .selectable()
         .striped(true)
         .height(Grow(1))
-        .show(|ui, row, column| show_cell(ui, &rows[row], column, dialog, actions));
+        .show(|ui, row, column| show_cell(ui, &rows[row], column));
 
     let instance_at = |row: Option<usize>| row.and_then(|row| rows[row].instance.as_ref());
     if table.selection_changed()
@@ -63,6 +60,18 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
     {
         window.chosen = Some(instance.name().clone());
     }
+    let anchor = match table.context_row() {
+        Some((row, response)) => {
+            if let Some(instance) = instance_at(Some(row)) {
+                window.chosen = Some(instance.name().clone());
+            }
+            response
+        }
+        None => table.response(),
+    };
+    ui.context_menu(&anchor)
+        .id(table_id.with(&"row menu"))
+        .show(|ui| row_menu(ui, window));
     if let Some(instance) = instance_at(table.activated_row())
         && instance.game_files() == GameFiles::Present
         && window.app.playing().is_none()
@@ -118,7 +127,6 @@ fn rows(window: &Window, sort: Option<TableSort>) -> Vec<Row> {
             state: "Unreadable".to_owned(),
             is_active: false,
             is_favorite: false,
-            can_change: false,
         });
     found
         .into_iter()
@@ -131,7 +139,6 @@ fn rows(window: &Window, sort: Option<TableSort>) -> Vec<Row> {
                 state,
                 is_active,
                 is_favorite: window.app.is_favorite(instance.name()),
-                can_change: window.can_change(instance),
                 instance: Some(instance.clone()),
             }
         })
@@ -200,15 +207,9 @@ fn state_text(window: &Window, instance: &Instance) -> (String, bool) {
     (text.to_owned(), false)
 }
 
-fn show_cell(
-    ui: &mut Ui,
-    row: &Row,
-    column: usize,
-    dialog: &mut Option<Dialog>,
-    actions: &mut Vec<Action>,
-) {
+fn show_cell(ui: &mut Ui, row: &Row, column: usize) {
     match column {
-        0 => show_name_cell(ui, row, dialog, actions),
+        0 => show_name_cell(ui, row),
         VERSION_COLUMN => {
             if let Some(version) = &row.version {
                 swatch(ui, era_color(version));
@@ -229,42 +230,50 @@ fn show_cell(
     }
 }
 
-fn show_name_cell(ui: &mut Ui, row: &Row, dialog: &mut Option<Dialog>, actions: &mut Vec<Action>) {
+fn show_name_cell(ui: &mut Ui, row: &Row) {
     if row.is_favorite {
         ui.canvas().size(STAR, STAR).show(|canvas, _, _| {
             Icon::StarFilled.draw(canvas, vec2(0.0, 0.0), STAR, ACCENT);
         });
     }
     let label = ui.label(row.name.clone()).wrap(false);
-    let Some(instance) = &row.instance else {
+    if row.instance.is_none() {
         label.style(|style| style.color(MUTED));
+    }
+}
+
+fn row_menu(ui: &mut Ui, window: &mut Window) {
+    let Some(instance) = window.chosen_instance().cloned() else {
         return;
     };
-    let label = label.show();
-    let name = instance.name();
-    ui.context_menu(&label).show(|ui| {
-        let favorite = if row.is_favorite {
-            "Remove from favorites"
-        } else {
-            "Add to favorites"
-        };
-        if ui.menu_item(favorite).clicked() {
-            actions.push(Action::ToggleFavorite(name.clone()));
-        }
-        if ui.menu_item("Set as default").clicked() {
-            actions.push(Action::SetDefault(name.clone()));
-        }
-        if ui.menu_item("Open folder").clicked() {
-            actions.push(Action::OpenFolder(name.clone()));
-        }
-        ui.separator();
-        if ui.menu_item("Rename…").enabled(row.can_change).clicked() {
-            *dialog = Some(Dialog::rename(name));
-        }
-        if ui.menu_item("Delete…").enabled(row.can_change).clicked() {
-            *dialog = Some(Dialog::delete(instance));
-        }
-    });
+    let name = instance.name().clone();
+    let favorite = if window.app.is_favorite(&name) {
+        "Remove from favorites"
+    } else {
+        "Add to favorites"
+    };
+    if ui.menu_item(favorite).clicked() {
+        window.actions.push(Action::ToggleFavorite(name.clone()));
+    }
+    let is_default = window.app.default_instance() == Some(&name);
+    if ui
+        .menu_item("Set as default")
+        .enabled(!is_default)
+        .clicked()
+    {
+        window.actions.push(Action::SetDefault(name.clone()));
+    }
+    if ui.menu_item("Open folder").clicked() {
+        window.actions.push(Action::OpenFolder(name.clone()));
+    }
+    ui.separator();
+    let can_change = window.can_change(&instance);
+    if ui.menu_item("Rename…").enabled(can_change).clicked() {
+        window.dialog = Some(Dialog::rename(&name));
+    }
+    if ui.menu_item("Delete…").enabled(can_change).clicked() {
+        window.dialog = Some(Dialog::delete(&instance));
+    }
 }
 
 fn swatch(ui: &mut Ui, color: Color) {
