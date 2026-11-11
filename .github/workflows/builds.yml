@@ -1,6 +1,6 @@
 # builds glint for windows and macos on github's runners, linux builds locally in release.sh.
 # it doesn't publish anything, echogd.com stays the only release
-#   gh workflow run builds.yml --ref master   (or push a v* tag)
+# runs on every push, or by hand: gh workflow run builds.yml --ref master
 #   gh run download <run id> --dir ~/Downloads/glint-builds
 #   scripts/release.sh ~/Downloads/glint-builds/*/glint-*
 # the mac zip is for the updater (ASSET in src/update.rs), the dmg is for people
@@ -9,7 +9,11 @@ name: Glint builds
 on:
   workflow_dispatch:
   push:
-    tags: ["v*"]
+
+# a newer push on the same ref replaces a build still running, mac minutes count 10x
+concurrency:
+  group: builds-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   # cargo's own git can't use the ssh agent on windows
