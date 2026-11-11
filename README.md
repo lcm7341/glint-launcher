@@ -32,5 +32,10 @@ Early in development. Usable on Windows, MacOS, and Linux. More features and fix
 - Texture pack tab
 - Screenshots/clips tab
 ## Discord
-
 If you have any questions, need help, or just want to chat, please join our [Discord server](https://discord.gg/7pseDg9Wse)!
+
+## Developers
+### Building From Source
+Unfortunately, this project utilizes a handy and easy to use UI library that was largely developed using artificial intelligence as a test case for recent developments in LLMs. Due to the scope of that project, and facts regarding its creation and development, I have chosen to keep that repository private. This means that, although glint is open source, the UI library (weft) will remain, at least for the time being, closed source. This means that building this project from source is currently not possible, and the open repository stands to simply view the code of the project.
+
+We understand the side effects of this, particularly residing in trust, and if it gets to the point where people would much rather I publicize the weft source, I will do so.
