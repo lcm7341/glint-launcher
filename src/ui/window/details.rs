@@ -125,7 +125,10 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
         &mut window.actions,
     );
     show_save(ui, window, instance);
-    show_link(ui, window, instance);
+    // windows builds on a mac can never link, so the row has nothing to offer
+    if window.app.shares_platform_save(instance.config().platform) {
+        show_link(ui, window, instance);
+    }
     let is_geode_era = instance.config().version >= "2.2".parse().expect("a fixed version parses");
     let (title, status, loader_action) = match window.app.mod_loader(instance) {
         _ if !is_geode_era => ("Mods", None, None),

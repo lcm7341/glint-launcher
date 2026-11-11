@@ -110,7 +110,7 @@ impl App {
     }
 
     // wine save differs from mac
-    fn shares_platform_save(&self, platform: GdPlatform) -> bool {
+    pub(crate) fn shares_platform_save(&self, platform: GdPlatform) -> bool {
         self.native_platform() != Some(GdPlatform::MacOs) || platform != GdPlatform::Windows
     }
 
