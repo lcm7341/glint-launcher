@@ -85,15 +85,6 @@ fn non_empty_env(key: &str) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-fn find_program(programs: &'static [&'static str]) -> Option<&'static str> {
-    let path = env::var_os("PATH")?;
-    let dirs: Vec<_> = env::split_paths(&path).collect();
-    programs
-        .iter()
-        .copied()
-        .find(|program| dirs.iter().any(|dir| dir.join(program).is_file()))
-}
-
 pub(crate) fn hide_console(command: &mut Command) {
     #[cfg(windows)]
     {

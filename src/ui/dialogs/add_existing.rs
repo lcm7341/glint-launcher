@@ -15,19 +15,11 @@ const WIDTH: f32 = 560.0;
 pub(crate) struct AddExisting {
     folder: String,
     picker: FilePicker,
-    picker_error: Option<String>,
 }
 
 pub(crate) fn show(ui: &mut Ui, window: &mut Window, open: &mut bool, add: &mut AddExisting) {
-    if let Some(result) = add.picker.take_result() {
-        match result {
-            Ok(Some(picked)) => {
-                add.folder = home_relative(&picked);
-                add.picker_error = None;
-            }
-            Ok(None) => add.picker_error = None,
-            Err(error) => add.picker_error = Some(format!("Couldn't select a folder: {error}")),
-        }
+    if let Some(Some(picked)) = add.picker.take_result() {
+        add.folder = home_relative(&picked);
     }
     let launcher = &window.app;
     let actions = &mut window.actions;
@@ -35,9 +27,6 @@ pub(crate) fn show(ui: &mut Ui, window: &mut Window, open: &mut bool, add: &mut 
         .title("Add existing install")
         .style(|style| style.width(Fixed(WIDTH)))
         .show(|ui| {
-            if let Some(error) = &add.picker_error {
-                ui.label(error).muted();
-            }
             show_found(ui, launcher, actions);
             ui.separator();
             show_other_folder(ui, &mut add.folder, &mut add.picker, launcher, actions);
@@ -88,16 +77,14 @@ fn show_other_folder(
                 .placeholder("~/Games/GD-2.113")
                 .width(Grow(1))
                 .submitted();
-            if FilePicker::is_available() {
-                let browse = ui.button("Browse…").enabled(!picker.is_open()).show();
-                if browse.clicked() {
-                    let start = typed
-                        .clone()
-                        .filter(|path| path.is_dir())
-                        .or_else(crate::platform::home_dir)
-                        .unwrap_or_default();
-                    picker.open(&start, launcher.notify());
-                }
+            let browse = ui.button("Browse…").enabled(!picker.is_open()).show();
+            if browse.clicked() {
+                let start = typed
+                    .clone()
+                    .filter(|path| path.is_dir())
+                    .or_else(crate::platform::home_dir)
+                    .unwrap_or_default();
+                picker.open(&start, launcher.notify());
             }
         });
     });

@@ -58,7 +58,7 @@ impl Window {
             self.chosen = first;
         }
         self.actions.clear();
-        self.mod_picker.poll(ui, &mut self.actions);
+        self.mod_picker.poll(&mut self.actions);
         self.handle_shortcuts(ui);
 
         ui.column()

@@ -1,21 +1,17 @@
-use crate::task::Job;
-use crate::task::Notify;
-use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 
-use super::{PickKind, find_program, host};
+use rfd::AsyncFileDialog;
 
+use super::PickKind;
+use crate::task::{Job, Notify};
+
+/// the desktop's own file chooser: the portal on linux, NSOpenPanel on macos
 #[derive(Default)]
 pub(crate) struct FilePicker {
-    picking: Option<Job<io::Result<Option<PathBuf>>>>,
+    picking: Option<Job<Option<PathBuf>>>,
 }
 
 impl FilePicker {
-    pub(crate) fn is_available() -> bool {
-        find_program(host::file_picker::PROGRAMS).is_some()
-    }
-
     pub(crate) fn is_open(&self) -> bool {
         self.picking.is_some()
     }
@@ -33,34 +29,50 @@ impl FilePicker {
     }
 
     fn open_for(&mut self, pick: PickKind, start: &Path, notify: Notify) {
-        let Some(program) = find_program(host::file_picker::PROGRAMS) else {
-            return;
-        };
         if self.is_open() {
             return;
         }
-        let home = super::home_dir();
-        let start = match home {
+        let start = match super::home_dir() {
             Some(home) if !start.is_dir() => home,
             _ => start.to_path_buf(),
         };
-        let mut command = host::file_picker::command(program, pick, &start);
-        command.stdin(Stdio::null()).stderr(Stdio::null());
+        // macos only opens panels on the main thread, the async dialog hands it there
         self.picking = Some(Job::spawn(&notify, move || {
-            let output = command.output()?;
-            // cancel exits nonzero
-            if !output.status.success() {
-                return Ok(None);
-            }
-            let path = String::from_utf8(output.stdout)
-                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
-            Ok((!path.trim().is_empty()).then(|| PathBuf::from(path.trim())))
+            pollster::block_on(pick_path(pick, &start))
         }));
     }
 
-    pub(crate) fn take_result(&mut self) -> Option<io::Result<Option<PathBuf>>> {
+    /// Some(None) when the dialog was cancelled
+    pub(crate) fn take_result(&mut self) -> Option<Option<PathBuf>> {
         let result = self.picking.as_ref()?.take()?;
         self.picking = None;
         Some(result)
     }
+}
+
+async fn pick_path(pick: PickKind, start: &Path) -> Option<PathBuf> {
+    let dialog = AsyncFileDialog::new().set_directory(start);
+    let picked = match pick {
+        PickKind::Folder => {
+            dialog
+                .set_title("Pick a Geometry Dash folder")
+                .pick_folder()
+                .await
+        }
+        PickKind::DllFile => {
+            dialog
+                .set_title("Pick a mod DLL")
+                .add_filter("DLL mods", &["dll", "DLL"])
+                .pick_file()
+                .await
+        }
+        PickKind::GeodeFile => {
+            dialog
+                .set_title("Pick a Geode mod")
+                .add_filter("Geode mods", &["geode", "GEODE"])
+                .pick_file()
+                .await
+        }
+    };
+    picked.map(|file| file.path().to_path_buf())
 }

@@ -1,5 +1,4 @@
 pub(in crate::platform) mod desktop;
-pub(in crate::platform) mod file_picker;
 pub(in crate::platform) mod launch;
 pub(in crate::platform) mod paths;
 pub(in crate::platform) mod processes;

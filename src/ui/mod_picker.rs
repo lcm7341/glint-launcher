@@ -3,7 +3,6 @@ use crate::instances::Instance;
 use crate::instances::InstanceName;
 use crate::platform::FilePicker;
 use crate::task::Notify;
-use weft::prelude::Ui;
 
 #[derive(Default)]
 pub(crate) struct ModPicker {
@@ -12,15 +11,12 @@ pub(crate) struct ModPicker {
 }
 
 impl ModPicker {
-    pub(crate) fn is_available() -> bool {
-        FilePicker::is_available()
-    }
     pub(crate) fn is_open(&self) -> bool {
         self.picker.is_open()
     }
 
     pub(crate) fn open(&mut self, instance: &Instance, notify: Notify) {
-        if self.is_open() || !Self::is_available() {
+        if self.is_open() {
             return;
         }
         let home = crate::platform::home_dir().unwrap_or_default();
@@ -34,22 +30,18 @@ impl ModPicker {
         self.target = Some(instance.name().clone());
     }
 
-    pub(crate) fn poll(&mut self, ui: &mut Ui, actions: &mut Vec<Action>) {
+    pub(crate) fn poll(&mut self, actions: &mut Vec<Action>) {
         let Some(result) = self.picker.take_result() else {
             return;
         };
         let Some(instance) = self.target.take() else {
             return;
         };
-        match result {
-            Ok(Some(source)) => actions.push(Action::Mod {
+        if let Some(source) = result {
+            actions.push(Action::Mod {
                 instance,
                 change: ModChange::Add { source },
-            }),
-            Ok(None) => {}
-            Err(error) => {
-                ui.toast(format!("Couldn't select a mod: {error}")).urgent();
-            }
+            });
         }
     }
 }

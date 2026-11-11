@@ -6,7 +6,6 @@ use super::Window;
 use crate::app::{Action, ModLoader, SaveMode};
 use crate::ui::dialogs::Dialog;
 use crate::ui::icons::{Icon, icon_button};
-use crate::ui::mod_picker::ModPicker;
 use crate::ui::mods::browse::GeodeIndex;
 use crate::ui::theme::{MUTED, TEXT};
 
@@ -173,13 +172,12 @@ fn show_fields(ui: &mut Ui, window: &mut Window, instance: &Instance) {
                     .height(24)
                     .tooltip("Browse Geode mods")
                     .clicked();
-                if ModPicker::is_available()
-                    && ui
-                        .button("Add mod…")
-                        .height(24)
-                        .enabled(!window.mod_picker.is_open())
-                        .tooltip("Add a .geode file")
-                        .clicked()
+                if ui
+                    .button("Add mod…")
+                    .height(24)
+                    .enabled(!window.mod_picker.is_open())
+                    .tooltip("Add a .geode file")
+                    .clicked()
                 {
                     window.mod_picker.open(instance, window.app.notify());
                 }

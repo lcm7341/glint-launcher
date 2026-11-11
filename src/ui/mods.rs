@@ -236,11 +236,9 @@ fn show_loader_bar(
                 }
             }
             let can_add = loader == DllLoader::GlintLoader || extensions_on;
-            if ModPicker::is_available() {
-                let button = ui.button("Add mod…").enabled(can_add && !is_picking).show();
-                if button.clicked() {
-                    add = true;
-                }
+            let button = ui.button("Add mod…").enabled(can_add && !is_picking).show();
+            if button.clicked() {
+                add = true;
             }
             if ui.button("Open folder").clicked() {
                 actions.push(change(ModChange::OpenFolder));
