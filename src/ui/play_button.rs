@@ -50,7 +50,10 @@ pub(crate) fn play(launcher: &App, instance: Option<&Instance>) -> Play {
                 Click::SetUpWine(name),
             ),
             LaunchReadiness::SettingUp(step) => {
-                Play::off("Setting up", format!("{}…", step.describe()))
+                let hint = launcher
+                    .wine_setup()
+                    .map_or_else(|| format!("{}…", step.describe()), |setup| setup.describe());
+                Play::off("Setting up", hint)
             }
             LaunchReadiness::Blocked(blocker) => Play::off(
                 "Play",

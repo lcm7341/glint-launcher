@@ -1,3 +1,4 @@
+use crate::launch::wine::setup::Progress;
 use std::fs::{self, File};
 use std::io::{self, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
@@ -29,10 +30,10 @@ pub fn glint_wine(tools_dir: &Path) -> Option<PathBuf> {
     program.is_file().then_some(program)
 }
 
-pub(crate) fn fetch_wine(tools_dir: &Path) -> Result<PathBuf, String> {
+pub(crate) fn fetch_wine(tools_dir: &Path, progress: Progress<'_>) -> Result<PathBuf, String> {
     fs::create_dir_all(tools_dir).map_err(|error| error.to_string())?;
     let archive = tools_dir.join(format!("{WINE_DIR}.tar.xz.part"));
-    let downloaded = download_checked(&archive);
+    let downloaded = download_checked(&archive, progress);
     if let Err(error) = downloaded {
         let _ = fs::remove_file(&archive);
         return Err(error);
@@ -48,7 +49,7 @@ pub(crate) fn fetch_wine(tools_dir: &Path) -> Result<PathBuf, String> {
     glint_wine(tools_dir).ok_or_else(|| format!("the download has no {WINE_PROGRAM}"))
 }
 
-fn download_checked(path: &Path) -> Result<(), String> {
+fn download_checked(path: &Path, progress: Progress<'_>) -> Result<(), String> {
     let agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(30 * 60)))
         .build()
@@ -58,11 +59,13 @@ fn download_checked(path: &Path) -> Result<(), String> {
         .header("User-Agent", "glint")
         .call()
         .map_err(|error| error.to_string())?;
+    let total = response.body().content_length();
     let mut body = response
         .body_mut()
         .with_config()
         .limit(512 * 1024 * 1024)
         .reader();
+    let mut done = 0;
     let mut file = BufWriter::new(File::create(path).map_err(|error| error.to_string())?);
     let mut hasher = Sha256::new();
     let mut buffer = vec![0; 1 << 16];
@@ -74,6 +77,8 @@ fn download_checked(path: &Path) -> Result<(), String> {
             Err(error) => return Err(error.to_string()),
         };
         hasher.update(&buffer[..read]);
+        done += read as u64;
+        progress(done, total);
         file.write_all(&buffer[..read])
             .map_err(|error| error.to_string())?;
     }

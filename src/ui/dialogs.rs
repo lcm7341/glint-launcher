@@ -392,14 +392,12 @@ fn show_wine_setup(ui: &mut Ui, window: &mut Window, open: &mut bool, name: &Ins
         .title("Set up old versions")
         .style(|style| style.width(Fixed(DIALOG_WIDTH)))
         .show(|ui| {
-            ui.label("On a Mac, pre-2.2 versions run their Windows build. Setup runs once:");
-            ui.label(format!("1. Downloads Wine {WINE_VERSION} (~215 MB)"));
-            ui.label("2. Installs Steam for Windows inside Wine");
-            ui.label("3. Opens it so you can sign in");
-            ui.label(
-                "Takes ~3 GB in Glint's folder. Glint leaves your normal Steam and saves alone.",
-            )
-            .muted();
+            ui.label("On macOS, pre-2.2 versions run through Wine. Setup includes:");
+            ui.label(format!("1. Downloading Wine {WINE_VERSION} (215 MB)"));
+            ui.label("2. Installing Steam for Windows inside Wine");
+            ui.label("3. Opening it for you to sign in");
+            ui.label("Takes ~3 GB of storage in the Glint folder.")
+                .muted();
             ui.row().justify(Justify::End).gap(8).show(|ui| {
                 if ui.button("Cancel").clicked() {
                     ui.close_overlay();

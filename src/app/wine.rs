@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use crate::instances::Instance;
 use crate::launch::{
-    GameProcess, INSTALL_ROSETTA, SetupStep, WineStatus, WineSteam, glint_wine, needs_rosetta,
-    setup_wine, wine_steam_running,
+    GameProcess, INSTALL_ROSETTA, SetupStep, WINE_VERSION, WineStatus, WineSteam, glint_wine,
+    needs_rosetta, setup_wine, wine_steam_running,
 };
 use crate::paths::DataDir;
 
@@ -19,8 +19,43 @@ pub(super) struct WineSupport {
 }
 
 struct WineSetup {
-    step: Arc<Mutex<SetupStep>>,
+    progress: Arc<Mutex<WineProgress>>,
     job: Job<Result<(), String>>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct WineProgress {
+    pub(crate) step: SetupStep,
+    pub(crate) downloaded: u64,
+    pub(crate) total: Option<u64>,
+}
+
+impl WineProgress {
+    pub(crate) fn fraction(self) -> Option<f32> {
+        let total = self.total.filter(|total| *total > 0)?;
+        Some(self.downloaded as f32 / total as f32)
+    }
+
+    pub(crate) fn megabytes(self) -> Option<String> {
+        let total = self.total.filter(|total| *total > 0)?;
+        Some(format!(
+            "{} / {} MB",
+            self.downloaded / 1_000_000,
+            total / 1_000_000
+        ))
+    }
+
+    /// "Downloading Wine 11.21… 54 / 215 MB"
+    pub(crate) fn describe(self) -> String {
+        let step = match self.step {
+            SetupStep::DownloadingWine => format!("Downloading Wine {WINE_VERSION}"),
+            step => step.describe().to_owned(),
+        };
+        match self.megabytes() {
+            Some(megabytes) => format!("{step}… {megabytes}"),
+            None => format!("{step}…"),
+        }
+    }
 }
 
 impl WineSupport {
@@ -42,15 +77,23 @@ impl WineSupport {
     }
 
     pub(super) fn status(&self) -> WineStatus {
-        if let Some(setup) = &self.setup {
-            return WineStatus::SettingUp(
-                *setup.step.lock().unwrap_or_else(PoisonError::into_inner),
-            );
+        if let Some(progress) = self.progress() {
+            return WineStatus::SettingUp(progress.step);
         }
         match self.steam() {
             Some(wine_steam) if wine_steam.is_steam_installed() => WineStatus::Ready,
             _ => WineStatus::NotSetUp,
         }
+    }
+
+    pub(super) fn progress(&self) -> Option<WineProgress> {
+        let setup = self.setup.as_ref()?;
+        Some(
+            *setup
+                .progress
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner),
+        )
     }
 
     pub(super) fn start_setup(&mut self, activity: &mut Activity) -> Option<Notice> {
@@ -64,18 +107,43 @@ impl WineSupport {
             return Some(Notice::failed("Glint can't find its data folder"));
         };
         let prefix = data_dir.wine_dir();
-        let step = Arc::new(Mutex::new(SetupStep::MakingWineFolder));
-        let shared_step = Arc::clone(&step);
+        let progress = Arc::new(Mutex::new(WineProgress {
+            step: SetupStep::MakingWineFolder,
+            downloaded: 0,
+            total: None,
+        }));
+        let shared = Arc::clone(&progress);
         let notify = Arc::clone(&self.notify);
         let job = Job::spawn(&self.notify, move || {
-            let report = |now: SetupStep| {
-                *shared_step.lock().unwrap_or_else(PoisonError::into_inner) = now;
-                notify();
+            let update = |change: &dyn Fn(&mut WineProgress) -> bool| {
+                let redraw = change(&mut shared.lock().unwrap_or_else(PoisonError::into_inner));
+                if redraw {
+                    notify();
+                }
             };
-            setup_wine(&tools_dir, &prefix, &report)
+            let step = |now: SetupStep| {
+                update(&|progress| {
+                    *progress = WineProgress {
+                        step: now,
+                        downloaded: 0,
+                        total: None,
+                    };
+                    true
+                });
+            };
+            // redraw once a megabyte
+            let bytes = |downloaded: u64, total: Option<u64>| {
+                update(&|progress| {
+                    let redraw = downloaded / 1_000_000 != progress.downloaded / 1_000_000;
+                    progress.downloaded = downloaded;
+                    progress.total = total;
+                    redraw
+                });
+            };
+            setup_wine(&tools_dir, &prefix, &step, &bytes)
         });
         activity.push_log("Setting up Wine and Steam for Windows".to_owned());
-        self.setup = Some(WineSetup { step, job });
+        self.setup = Some(WineSetup { progress, job });
         None
     }
 
@@ -165,4 +233,10 @@ fn rosetta_notice() -> Notice {
     Notice::failed(format!(
         "Wine needs Rosetta. Run {INSTALL_ROSETTA} in Terminal"
     ))
+}
+
+impl super::App {
+    pub(crate) fn wine_setup(&self) -> Option<WineProgress> {
+        self.wine.progress()
+    }
 }

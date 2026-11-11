@@ -27,6 +27,14 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
                         window.actions.push(Action::CancelDownload);
                     }
                 });
+            } else if let Some(setup) = window.app.wine_setup() {
+                ui.row().gap(8).align(Align::Center).show(|ui| {
+                    ui.label(setup.describe()).wrap(false).font_size(12);
+                    if let Some(fraction) = setup.fraction() {
+                        ui.progress(Some(fraction))
+                            .style(|style| style.width(Fixed(160.0)).height(Fixed(6.0)));
+                    }
+                });
             } else {
                 ui.label(summary(window)).muted().font_size(12).wrap(false);
             }
