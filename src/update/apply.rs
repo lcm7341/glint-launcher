@@ -211,7 +211,7 @@ fn remove_dir(path: &Path) -> io::Result<()> {
     }
 }
 
-fn app_bundle(exe: &Path) -> Option<PathBuf> {
+pub(super) fn app_bundle(exe: &Path) -> Option<PathBuf> {
     exe.ancestors()
         .find(|folder| {
             folder
@@ -222,7 +222,7 @@ fn app_bundle(exe: &Path) -> Option<PathBuf> {
         .map(Path::to_path_buf)
 }
 
-fn old_bundle(bundle: &Path) -> PathBuf {
+pub(super) fn old_bundle(bundle: &Path) -> PathBuf {
     let mut name = OsString::from(".");
     name.push(bundle.file_name().unwrap_or_default());
     name.push(".old");

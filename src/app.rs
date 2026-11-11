@@ -280,6 +280,12 @@ impl App {
             Action::OpenLink(url) => self.open_link(&url),
             Action::OpenSaveFolder(name) => self.open_save_folder(&name),
             Action::InstallUpdate => self.start_update(),
+            Action::MoveToApplications => self.move_to_applications(),
+            Action::StayOutsideApplications => {
+                self.settings.stay_outside_applications = true;
+                self.save_settings();
+                None
+            }
         };
         self.activity.extend(notice);
     }

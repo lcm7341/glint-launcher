@@ -1,7 +1,9 @@
+mod applications;
 mod apply;
 mod release;
 mod version;
 
+pub(crate) use applications::{bundle_outside_applications, move_to_applications};
 pub(crate) use apply::{clean_up_old_files, install, relaunch};
 pub(crate) use release::{Release, fetch_latest};
 pub(crate) use version::Version;

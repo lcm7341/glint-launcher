@@ -31,6 +31,9 @@ pub(crate) struct Window {
 
 impl Window {
     pub(crate) fn new(app: App) -> Self {
+        let dialog = app
+            .offers_move_to_applications()
+            .then_some(Dialog::MoveToApplications);
         Self {
             icon: weft::gfx::Image::from_rgba8(
                 crate::ICON_SIDE,
@@ -43,7 +46,7 @@ impl Window {
             show_log: false,
             log_seen: 0,
             filter: String::new(),
-            dialog: None,
+            dialog,
             actions: Vec::new(),
         }
     }

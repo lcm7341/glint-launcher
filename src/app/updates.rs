@@ -107,6 +107,37 @@ impl App {
         }
     }
 
+    /// at startup, on a mac
+    pub(crate) fn offers_move_to_applications(&self) -> bool {
+        !self.settings.stay_outside_applications && update::bundle_outside_applications().is_some()
+    }
+
+    pub(super) fn move_to_applications(&mut self) -> Option<Notice> {
+        if let Some(blocker) = self.update_blocker() {
+            return Some(Notice::failed(blocker));
+        }
+        let bundle = update::bundle_outside_applications()?;
+        let moved = match update::move_to_applications(&bundle) {
+            Ok(moved) => moved,
+            Err(error) => {
+                return Some(Notice::failed(format!(
+                    "Couldn't move Glint to Applications: {error}"
+                )));
+            }
+        };
+        self.push_log(format!("Moved Glint to {}", moved.display()));
+        match update::relaunch(&moved) {
+            Ok(()) => {
+                self.updater = Updater::Restarting;
+                None
+            }
+            Err(error) => Some(Notice::done(format!(
+                "Moved Glint to {}. Open it from there ({error})",
+                moved.display()
+            ))),
+        }
+    }
+
     pub(super) fn start_update(&mut self) -> Option<Notice> {
         if let Some(blocker) = self.update_blocker() {
             return Some(Notice::failed(blocker));

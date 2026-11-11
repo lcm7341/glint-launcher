@@ -10,6 +10,8 @@ pub struct Settings {
     pub steam_username: Option<String>,
     pub favorites: Vec<InstanceName>,
     pub new_instance_save: NewInstanceSave,
+    /// macos: don't offer to move glint.app into Applications
+    pub stay_outside_applications: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -70,6 +72,7 @@ impl Settings {
                     })?);
                 }
                 "steam-username" => settings.steam_username = Some(value.to_owned()),
+                "stay-outside-applications" => settings.stay_outside_applications = value == "true",
                 "new-instance-save" => {
                     settings.new_instance_save = NewInstanceSave::ALL
                         .into_iter()
@@ -106,6 +109,9 @@ impl Settings {
         if self.new_instance_save != NewInstanceSave::default() {
             let save = self.new_instance_save.key();
             text.push_str(&format!("new-instance-save {save}\n"));
+        }
+        if self.stay_outside_applications {
+            text.push_str("stay-outside-applications true\n");
         }
         text
     }

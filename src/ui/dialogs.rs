@@ -39,6 +39,7 @@ pub(crate) enum Dialog {
     Backups(InstanceName),
     AddExisting(AddExisting),
     GeodeIndex(GeodeIndex),
+    MoveToApplications,
 }
 
 impl Dialog {
@@ -99,6 +100,7 @@ pub(crate) fn show(ui: &mut Ui, window: &mut Window) {
         Dialog::GeodeIndex(index) => {
             index.show(ui, &mut open, &window.app, &mut window.actions);
         }
+        Dialog::MoveToApplications => show_move_to_applications(ui, window, &mut open),
     }
     if open && window.dialog.is_none() {
         window.dialog = Some(dialog);
@@ -404,6 +406,30 @@ fn show_wine_setup(ui: &mut Ui, window: &mut Window, open: &mut bool, name: &Ins
                 }
                 if ui.button("Set up").primary().clicked() {
                     window.actions.push(Action::Play(name.clone()));
+                    ui.close_overlay();
+                }
+            });
+        });
+}
+
+fn show_move_to_applications(ui: &mut Ui, window: &mut Window, open: &mut bool) {
+    ui.modal(open)
+        .title("Move Glint to Applications?")
+        .style(|style| style.width(Fixed(DIALOG_WIDTH)))
+        .show(|ui| {
+            ui.label("Glint can't update itself while it runs from Downloads or the disk image.");
+            ui.label("Glint reopens from Applications after the move.")
+                .muted();
+            ui.row().justify(Justify::End).gap(8).show(|ui| {
+                if ui.button("Don't ask again").clicked() {
+                    window.actions.push(Action::StayOutsideApplications);
+                    ui.close_overlay();
+                }
+                if ui.button("Not now").clicked() {
+                    ui.close_overlay();
+                }
+                if ui.button("Move").primary().clicked() {
+                    window.actions.push(Action::MoveToApplications);
                     ui.close_overlay();
                 }
             });

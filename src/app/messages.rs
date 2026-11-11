@@ -32,6 +32,8 @@ pub(crate) enum Action {
     Download(InstanceName),
     CancelDownload,
     InstallUpdate,
+    MoveToApplications,
+    StayOutsideApplications,
     SignOut,
     SetDefault(InstanceName),
     ToggleFavorite(InstanceName),
