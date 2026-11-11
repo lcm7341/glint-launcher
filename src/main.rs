@@ -48,4 +48,3 @@ fn main() {
         .run_ui(move |ui| window.build(ui))
         .expect("failed to open window");
 }
-

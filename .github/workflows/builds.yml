@@ -2,7 +2,6 @@
 # it doesn't publish anything, echogd.com stays the only release
 # runs on every push, or by hand: gh workflow run builds.yml --ref master
 #   gh run download <run id> --dir ~/Downloads/glint-builds
-#   scripts/release.sh ~/Downloads/glint-builds/*/glint-*
 # the mac zip is for the updater (ASSET in src/update.rs), the dmg is for people
 name: Glint builds
 
@@ -35,7 +34,43 @@ jobs:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Build Glint.app and the dmg
-        run: ./scripts/bundle-macos.sh
+        run: |
+          cargo update -p weft
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            cargo build --release --bin glint --target "$target"
+          done
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          app=target/release/Glint.app
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          lipo -create -output "$app/Contents/MacOS/glint" \
+            target/aarch64-apple-darwin/release/glint target/x86_64-apple-darwin/release/glint
+          cp assets/icons/glint.icns "$app/Contents/Resources/glint.icns"
+          cat > "$app/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>Glint</string>
+            <key>CFBundleDisplayName</key><string>Glint</string>
+            <key>CFBundleIdentifier</key><string>app.glint.launcher</string>
+            <key>CFBundleExecutable</key><string>glint</string>
+            <key>CFBundleIconFile</key><string>glint</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleVersion</key><string>$version</string>
+            <key>CFBundleShortVersionString</key><string>$version</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>LSApplicationCategoryType</key><string>public.app-category.games</string>
+          </dict>
+          </plist>
+          PLIST
+          # ad hoc sign, or macos calls it damaged
+          codesign --force --sign - "$app"
+          codesign --verify --strict "$app"
+          # opening the dmg shows Glint next to an Applications shortcut to drag it onto
+          staging="$(mktemp -d)"
+          cp -R "$app" "$staging/"
+          ln -s /Applications "$staging/Applications"
+          hdiutil create -volname Glint -srcfolder "$staging" -fs HFS+ -format UDZO -ov target/release/glint-macos.dmg
 
       - name: Zip it
         run: |

@@ -10,7 +10,7 @@ pub(crate) use version::Version;
 
 use std::{fmt, io};
 
-/// written by scripts/release.sh
+/// echogd.com serves this with each release
 pub(crate) const MANIFEST_URL: &str = "https://echogd.com/download/glint/latest.json";
 
 pub(crate) fn current_version() -> Version {
