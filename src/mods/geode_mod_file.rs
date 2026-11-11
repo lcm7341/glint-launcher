@@ -40,7 +40,10 @@ pub fn add_geode_mod_file(
         .and_then(|opened| opened.take(MAX_MOD_BYTES).read_to_end(&mut bytes))
         .map_err(unreadable)?;
     let json = mod_json(Cursor::new(&bytes));
-    let Some((id, name, _, _)) = json.as_ref().and_then(mod_from_json) else {
+    let Some((id, name, _, _)) = json
+        .as_ref()
+        .and_then(|json| mod_from_json(json, mod_json_platform(platform)))
+    else {
         return Err(GeodeError::NotAGeodeMod(file));
     };
     if !is_mod_id(&id) {

@@ -96,7 +96,16 @@ impl GeodeModsReader {
             .get(path)
             .is_some_and(|known| known.modified == modified && known.length == length);
         if !is_current {
-            let (id, name, version, mut info) = mod_from_json(&mod_json(File::open(path).ok()?)?)?;
+            let platform = if path
+                .components()
+                .any(|part| part.as_os_str() == "Geometry Dash.app")
+            {
+                "mac"
+            } else {
+                "win"
+            };
+            let json = mod_json(File::open(path).ok()?)?;
+            let (id, name, version, mut info) = mod_from_json(&json, platform)?;
             info.updated = modified;
             info.size = length;
             self.metadata.insert(
@@ -177,7 +186,10 @@ pub(crate) fn mod_json(geode_file: impl Read + Seek) -> Option<Value> {
     serde_json::from_str(&text).ok()
 }
 
-pub(crate) fn mod_from_json(json: &Value) -> Option<(String, String, String, GeodeModInfo)> {
+pub(crate) fn mod_from_json(
+    json: &Value,
+    platform: &str,
+) -> Option<(String, String, String, GeodeModInfo)> {
     let field = |key: &str| json.get(key).and_then(Value::as_str).map(str::to_owned);
     let strings = |key: &str| -> Vec<String> {
         json.get(key)
@@ -200,7 +212,7 @@ pub(crate) fn mod_from_json(json: &Value) -> Option<(String, String, String, Geo
         description: field("description"),
         tags: strings("tags"),
         geode: field("geode"),
-        gd: gd_for(json, "win"),
+        gd: gd_for(json, platform),
         dependencies: dependencies(json.get("dependencies")),
         links: json
             .get("links")

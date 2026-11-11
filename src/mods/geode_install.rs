@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 
+use crate::mods::geode_mac::{install_mac_geode, remove_mac_geode};
 use crate::mods::{GeodeError, GeodeRelease};
 
 const GEODE_FILES: &[&str] = &[
@@ -14,6 +15,8 @@ const GEODE_FILES: &[&str] = &[
     "GeodeUpdater.exe",
     "XInput1_4.dll",
 ];
+
+const MAC_APP: &str = "Geometry Dash.app";
 
 const MAC_GEODE_DIR: &str = "Geometry Dash.app/Contents";
 
@@ -44,16 +47,27 @@ pub fn install_geode(game_dir: &Path, release: &GeodeRelease) -> Result<(), Geod
         .header("User-Agent", "glint")
         .call()
         .map_err(|error| GeodeError::Network(error.to_string()))?;
-    let zip = response
+    let download = response
         .body_mut()
         .with_config()
         .limit(200 * 1024 * 1024)
         .read_to_vec()
         .map_err(|error| GeodeError::Network(error.to_string()))?;
-    install_geode_zip(game_dir, &zip, &release.sha256)
+    let bundle = game_dir.join(MAC_APP);
+    if bundle.is_dir() {
+        if hex(&Sha256::digest(&download)) != release.sha256 {
+            return Err(GeodeError::Checksum);
+        }
+        return install_mac_geode(&bundle, &download);
+    }
+    install_geode_zip(game_dir, &download, &release.sha256)
 }
 
 pub fn remove_geode(game_dir: &Path) -> Result<(), GeodeError> {
+    let bundle = game_dir.join(MAC_APP);
+    if bundle.is_dir() {
+        return remove_mac_geode(&bundle);
+    }
     for file in GEODE_FILES {
         match fs::remove_file(game_dir.join(file)) {
             Err(error) if error.kind() != std::io::ErrorKind::NotFound => {

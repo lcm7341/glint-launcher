@@ -1,4 +1,3 @@
-use crate::gd::GdPlatform;
 use crate::instances::InstanceName;
 use crate::instances::{GameFiles, Instance};
 use crate::mods::{
@@ -47,7 +46,6 @@ impl ModManager {
         }
         let first = FIRST_GEODE_VERSION.parse().expect("a fixed version parses");
         let can_install = !instance.is_imported()
-            && instance.config().platform == GdPlatform::Windows
             && instance.game_files() == GameFiles::Present
             && instance.config().version >= first;
         if can_install {
@@ -69,15 +67,18 @@ impl ModManager {
         let name = instance.name();
         let version = instance.config().version.clone();
         let game_dir = instance.game_dir();
-        let job = Job::spawn(notify, move || match fetch_latest_geode(&version) {
-            Ok(Some(release)) => install_geode(&game_dir, &release)
-                .map(|()| match release.prerelease {
-                    true => format!("{} (prerelease)", release.version),
-                    false => release.version,
-                })
-                .map_err(|error| error.to_string()),
-            Ok(None) => Err(format!("there's no Geode for {version}")),
-            Err(error) => Err(error.to_string()),
+        let platform = instance.config().platform;
+        let job = Job::spawn(notify, move || {
+            match fetch_latest_geode(&version, platform) {
+                Ok(Some(release)) => install_geode(&game_dir, &release)
+                    .map(|()| match release.prerelease {
+                        true => format!("{} (prerelease)", release.version),
+                        false => release.version,
+                    })
+                    .map_err(|error| error.to_string()),
+                Ok(None) => Err(format!("there's no Geode for {version}")),
+                Err(error) => Err(error.to_string()),
+            }
         });
         activity.push_log(format!("Installing Geode into \"{name}\""));
         self.installing = Some(GeodeTask {

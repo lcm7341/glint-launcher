@@ -4,6 +4,7 @@ mod echo_release;
 mod geode_error;
 mod geode_index;
 mod geode_install;
+mod geode_mac;
 mod geode_mod_file;
 mod geode_mod_install;
 mod geode_mod_version;
