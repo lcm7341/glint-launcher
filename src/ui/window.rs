@@ -25,6 +25,7 @@ pub(crate) struct Window {
     show_log: bool,
     log_seen: usize,
     filter: String,
+    show_steam_account: bool,
     pub(crate) dialog: Option<Dialog>,
     pub(crate) actions: Vec<Action>,
 }
@@ -46,6 +47,7 @@ impl Window {
             show_log: false,
             log_seen: 0,
             filter: String::new(),
+            show_steam_account: false,
             dialog,
             actions: Vec::new(),
         }

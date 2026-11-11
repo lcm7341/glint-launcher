@@ -41,10 +41,24 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
             ui.spacer();
             match window.app.steam_account() {
                 Some(account) => {
-                    ui.label(format!("Steam: {account}"))
+                    let (text, tip) = if window.show_steam_account {
+                        (format!("Steam: {account}"), "Click to hide".to_owned())
+                    } else {
+                        (
+                            "Steam: signed in".to_owned(),
+                            format!("{account} - click to show"),
+                        )
+                    };
+                    if ui
+                        .button(text)
                         .muted()
-                        .font_size(12)
-                        .wrap(false);
+                        .wrap(false)
+                        .height(22)
+                        .tooltip(tip)
+                        .clicked()
+                    {
+                        window.show_steam_account = !window.show_steam_account;
+                    }
                     if ui.button("Sign out").muted().height(22).clicked() {
                         window.actions.push(Action::SignOut);
                     }

@@ -184,7 +184,7 @@ impl Download {
             DepotEvent::SignedIn => "Signed in to Steam".to_owned(),
             DepotEvent::QrCodeFollows => "Showing QR code".to_owned(),
             DepotEvent::QrCodeRow(_) => return None,
-            DepotEvent::SignedInAs(username) => format!("Signed in as {username}"),
+            DepotEvent::SignedInAs(_) => "Signed in to Steam".to_owned(),
             DepotEvent::ManifestFound { manifest, date } => {
                 format!("Found manifest {manifest} from {date}")
             }
