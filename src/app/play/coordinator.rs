@@ -118,7 +118,6 @@ impl App {
                     instance.config().version
                 ));
                 self.play.started(instance, process, is_save_swapped, steam);
-                self.note_main_save_version(instance);
                 None
             }
             Err(error) => {

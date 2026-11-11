@@ -47,10 +47,6 @@ impl DataDir {
             .join(name.as_str())
     }
 
-    pub fn main_save_version_path(&self) -> PathBuf {
-        self.root.join("main-save-version")
-    }
-
     pub fn tools_dir(&self) -> PathBuf {
         self.root.join("tools")
     }

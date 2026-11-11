@@ -1,9 +1,8 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use super::{App, Notice, SaveMode};
-use crate::gd::{GdPlatform, GdVersion};
+use crate::gd::{GdPlatform, GdVersion, is_before_2_2};
 use crate::instances::{
     Instance, InstanceName, SaveBackup, back_up_save, list_backups, read_backup, restore_files,
 };
@@ -98,12 +97,16 @@ impl App {
         }
     }
 
-    pub(crate) fn link_blocker(&self, platform: GdPlatform, version: &GdVersion) -> Option<String> {
+    pub(crate) fn link_blocker(
+        &self,
+        platform: GdPlatform,
+        version: &GdVersion,
+    ) -> Option<&'static str> {
         if !self.shares_platform_save(platform) {
-            return Some("Windows builds on a Mac keep their own save".to_owned());
+            return Some("Windows builds on a Mac keep their own save");
         }
-        let newest = self.main_save_version()?;
-        (newest > *version).then(|| format!("Your main save is from {newest}"))
+        // 2.1 and older break on a 2.2 save
+        is_before_2_2(version).then_some("2.1 and older can't use your main save, copy it instead")
     }
 
     // wine save differs from mac
@@ -153,35 +156,6 @@ impl App {
             )),
             Err(error) => Notice::failed(format!("Couldn't copy your main save: {error}")),
         })
-    }
-
-    pub(super) fn note_main_save_version(&self, instance: &Instance) {
-        let Some(data_dir) = self.library.data_dir() else {
-            return;
-        };
-        let version = &instance.config().version;
-        if !instance.is_linked() || self.recorded_main_save_version() >= Some(version.clone()) {
-            return;
-        }
-        let _ = fs::create_dir_all(data_dir.root());
-        let _ = fs::write(data_dir.main_save_version_path(), format!("{version}\n"));
-    }
-
-    // imported linked installs count
-    fn main_save_version(&self) -> Option<GdVersion> {
-        let imported = self
-            .instances()
-            .iter()
-            .filter_map(|entry| entry.as_ref().ok())
-            .filter(|instance| instance.is_imported() && instance.is_linked())
-            .filter(|instance| self.shares_platform_save(instance.config().platform))
-            .map(|instance| instance.config().version.clone());
-        imported.chain(self.recorded_main_save_version()).max()
-    }
-
-    fn recorded_main_save_version(&self) -> Option<GdVersion> {
-        let path = self.library.data_dir()?.main_save_version_path();
-        fs::read_to_string(path).ok()?.trim().parse().ok()
     }
 }
 
