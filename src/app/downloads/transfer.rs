@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::depot::{DepotEvent, DepotProcess, DepotUpdate, DownloadRequest};
+use crate::depot::{CodeKind, DepotEvent, DepotProcess, DepotUpdate, DownloadRequest};
 use crate::gd::GdVersion;
 use crate::instances::InstanceName;
 
@@ -18,8 +18,11 @@ pub(crate) struct Download {
     file: Option<String>,
     downloaded_bytes: Option<u64>,
     failure: Option<String>,
-    needs_sign_in: bool,
     signs_in_with_qr: bool,
+    account: Option<String>,
+    password: Option<String>,
+    wrong_code: bool,
+    switch_to_qr: bool,
     qr_code: Vec<Vec<bool>>,
     signed_in_as: Option<String>,
     logged_tenths: u8,
@@ -36,11 +39,19 @@ pub(crate) struct DepotStart {
     pub(crate) notify: Notify,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SignIn {
+    Qr,
+    Saved(String),
+    Password { username: String, password: String },
+}
+
+#[derive(Clone, PartialEq, Eq)]
 enum Stage {
     SigningIn,
     ScanQrCode,
     ApproveInMobileApp,
+    EnterPassword,
+    EnterCode { kind: CodeKind, wrong: bool },
     Preparing,
     Downloading,
 }
@@ -48,8 +59,13 @@ enum Stage {
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) enum Outcome {
     Finished { downloaded_bytes: Option<u64> },
-    NeedsSignIn,
+    SwitchToQr,
     Failed(String),
+}
+
+pub(crate) enum SteamPrompt<'a> {
+    Password { account: Option<&'a str> },
+    Code { kind: &'a CodeKind, wrong: bool },
 }
 
 impl Download {
@@ -57,9 +73,9 @@ impl Download {
         instance: InstanceName,
         version: GdVersion,
         process: DepotProcess,
-        signs_in_with_qr: bool,
+        sign_in: SignIn,
     ) -> Self {
-        Self::with_work(instance, version, Work::Depot(process), signs_in_with_qr)
+        Self::with_work(instance, version, Work::Depot(process), sign_in)
     }
 
     pub(crate) fn after_seeding(
@@ -67,27 +83,32 @@ impl Download {
         version: GdVersion,
         seeding: Seeding,
         then: DepotStart,
+        account: String,
     ) -> Self {
-        Self::with_work(instance, version, Work::Seeding { seeding, then }, false)
+        let work = Work::Seeding { seeding, then };
+        Self::with_work(instance, version, work, SignIn::Saved(account))
     }
 
-    fn with_work(
-        instance: InstanceName,
-        version: GdVersion,
-        work: Work,
-        signs_in_with_qr: bool,
-    ) -> Self {
+    fn with_work(instance: InstanceName, version: GdVersion, work: Work, sign_in: SignIn) -> Self {
+        let (account, password) = match sign_in {
+            SignIn::Qr => (None, None),
+            SignIn::Saved(account) => (Some(account), None),
+            SignIn::Password { username, password } => (Some(username), Some(password)),
+        };
         Self {
             instance,
             version,
             work,
-            signs_in_with_qr,
+            signs_in_with_qr: account.is_none(),
+            account,
+            password,
+            wrong_code: false,
+            switch_to_qr: false,
             stage: Stage::SigningIn,
             fraction: None,
             file: None,
             downloaded_bytes: None,
             failure: None,
-            needs_sign_in: false,
             qr_code: Vec::new(),
             signed_in_as: None,
             logged_tenths: 0,
@@ -110,10 +131,12 @@ impl Download {
         if let Work::Seeding { seeding, .. } = &self.work {
             return seeding.detail();
         }
-        match self.stage {
+        match &self.stage {
             Stage::SigningIn => "Signing in to Steam".to_owned(),
             Stage::ScanQrCode => "Scan the QR code".to_owned(),
             Stage::ApproveInMobileApp => "Approve in the Steam app".to_owned(),
+            Stage::EnterPassword => "Enter your Steam password".to_owned(),
+            Stage::EnterCode { .. } => "Enter the Steam Guard code".to_owned(),
             Stage::Preparing => "Preparing the download".to_owned(),
             Stage::Downloading => match (&self.fraction, &self.file) {
                 (Some(fraction), Some(file)) => format!("{:.0}%  {file}", fraction * 100.0),
@@ -162,6 +185,45 @@ impl Download {
         (self.stage == Stage::ScanQrCode && !self.qr_code.is_empty()).then_some(&self.qr_code)
     }
 
+    pub(crate) fn prompt(&self) -> Option<SteamPrompt<'_>> {
+        match &self.stage {
+            Stage::EnterPassword => Some(SteamPrompt::Password {
+                account: self.account.as_deref(),
+            }),
+            Stage::EnterCode { kind, wrong } => Some(SteamPrompt::Code {
+                kind,
+                wrong: *wrong,
+            }),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn approving(&self) -> bool {
+        self.stage == Stage::ApproveInMobileApp
+    }
+
+    pub(crate) fn answer(&mut self, text: &str) {
+        if matches!(self.stage, Stage::EnterPassword | Stage::EnterCode { .. }) {
+            self.stage = Stage::SigningIn;
+            self.send(text);
+        }
+    }
+
+    pub(crate) fn switch_to_qr(&mut self) {
+        self.switch_to_qr = true;
+        self.cancel();
+    }
+
+    fn send(&mut self, text: &str) {
+        let Work::Depot(process) = &self.work else {
+            return;
+        };
+        if let Err(error) = process.answer(text) {
+            self.failure = Some(format!("couldn't answer DepotDownloader: {error}"));
+            process.cancel();
+        }
+    }
+
     pub(crate) fn signs_in_with_qr(&self) -> bool {
         self.signs_in_with_qr
     }
@@ -180,6 +242,14 @@ impl Download {
     fn describe(&mut self, event: &DepotEvent) -> Option<String> {
         let line = match event {
             DepotEvent::PasswordRequested => "Steam asked for a password".to_owned(),
+            DepotEvent::CodeRequested(CodeKind::App) => {
+                "Steam asked for a Steam Guard code".to_owned()
+            }
+            DepotEvent::CodeRequested(CodeKind::Email(_)) => {
+                "Steam emailed a Steam Guard code".to_owned()
+            }
+            DepotEvent::WrongCode => "Steam rejected the code".to_owned(),
+            DepotEvent::SignInFailed(reason) => format!("Sign-in failed: {reason}"),
             DepotEvent::ApproveInMobileApp => "Waiting for approval in the Steam app".to_owned(),
             DepotEvent::SignedIn => "Signed in to Steam".to_owned(),
             DepotEvent::QrCodeFollows => "Showing QR code".to_owned(),
@@ -216,7 +286,19 @@ impl Download {
 
     fn apply(&mut self, event: DepotEvent) {
         match event {
-            DepotEvent::PasswordRequested => self.needs_sign_in = true,
+            DepotEvent::PasswordRequested => match self.password.take() {
+                Some(password) => self.send(&password),
+                None => self.stage = Stage::EnterPassword,
+            },
+            DepotEvent::CodeRequested(kind) => {
+                let wrong = std::mem::take(&mut self.wrong_code);
+                self.stage = Stage::EnterCode { kind, wrong };
+            }
+            DepotEvent::WrongCode => self.wrong_code = true,
+            DepotEvent::SignInFailed(reason) => {
+                self.stage = Stage::SigningIn;
+                self.failure = Some(sign_in_failure(&reason));
+            }
             DepotEvent::QrCodeFollows => {
                 self.stage = Stage::ScanQrCode;
                 self.qr_code.clear();
@@ -228,9 +310,13 @@ impl Download {
                 self.qr_code.clear();
             }
             DepotEvent::ApproveInMobileApp => self.stage = Stage::ApproveInMobileApp,
-            DepotEvent::SignedIn | DepotEvent::ManifestFound { .. } => {
+            DepotEvent::SignedIn => {
+                if self.signed_in_as.is_none() {
+                    self.signed_in_as.clone_from(&self.account);
+                }
                 self.stage = Stage::Preparing;
             }
+            DepotEvent::ManifestFound { .. } => self.stage = Stage::Preparing,
             DepotEvent::Progress { percent, file } => {
                 self.stage = Stage::Downloading;
                 self.fraction = Some(percent / 100.0);
@@ -251,12 +337,12 @@ impl Download {
     }
 
     fn outcome(&self, success: bool) -> Outcome {
-        if success && self.failure.is_none() {
+        if self.switch_to_qr {
+            Outcome::SwitchToQr
+        } else if success && self.failure.is_none() {
             Outcome::Finished {
                 downloaded_bytes: self.downloaded_bytes,
             }
-        } else if self.needs_sign_in {
-            Outcome::NeedsSignIn
         } else {
             Outcome::Failed(
                 self.failure
@@ -264,5 +350,15 @@ impl Download {
                     .unwrap_or_else(|| "DepotDownloader quit before finishing".to_owned()),
             )
         }
+    }
+}
+
+fn sign_in_failure(reason: &str) -> String {
+    if reason.contains("InvalidPassword") {
+        "Steam rejected the username or password".to_owned()
+    } else if reason.contains("RateLimitExceeded") {
+        "Steam blocked sign-ins for a while after too many tries".to_owned()
+    } else {
+        format!("Steam sign-in failed: {reason}")
     }
 }

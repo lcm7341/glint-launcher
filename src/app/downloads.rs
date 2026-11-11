@@ -15,7 +15,8 @@ mod transfer;
 use seeding::{SeedFolders, Seeding};
 use tool::ToolFetch;
 pub(crate) use transfer::Download;
-use transfer::{DepotStart, Outcome};
+pub(crate) use transfer::SteamPrompt;
+use transfer::{DepotStart, Outcome, SignIn};
 
 pub(super) struct Downloads {
     program: Option<PathBuf>,
@@ -29,6 +30,13 @@ pub(super) struct DownloadPlan<'a> {
     pub(super) entry: &'a CatalogEntry,
     pub(super) seed: Option<&'a Instance>,
     pub(super) account: Option<String>,
+    pub(super) password: Option<String>,
+}
+
+#[derive(Clone)]
+pub(crate) struct Credentials {
+    pub(crate) username: String,
+    pub(crate) password: String,
 }
 
 pub(super) struct DownloadUpdate {
@@ -56,6 +64,16 @@ impl Downloads {
     pub(super) fn cancel(&self) {
         if let Some(download) = &self.active {
             download.cancel();
+        }
+    }
+    pub(super) fn answer(&mut self, text: &str) {
+        if let Some(download) = &mut self.active {
+            download.answer(text);
+        }
+    }
+    pub(super) fn switch_to_qr(&mut self) {
+        if let Some(download) = &mut self.active {
+            download.switch_to_qr();
         }
     }
     pub(super) fn poll(&mut self, activity: &mut Activity) -> Option<DownloadUpdate> {
@@ -106,6 +124,7 @@ impl Downloads {
             None => request.with_qr(true),
         };
         if let Some(account) = &account
+            && plan.password.is_none()
             && starts_fresh
             && let Some(seed) = plan.seed
         {
@@ -142,6 +161,7 @@ impl Downloads {
                 version,
                 seeding,
                 then,
+                account.clone(),
             ));
             return None;
         }
@@ -158,12 +178,12 @@ impl Downloads {
                     entry.version,
                     entry.platform.display_name()
                 ));
-                self.active = Some(Download::new(
-                    name.clone(),
-                    version,
-                    process,
-                    account.is_none(),
-                ));
+                let sign_in = match (account, plan.password) {
+                    (None, _) => SignIn::Qr,
+                    (Some(account), None) => SignIn::Saved(account),
+                    (Some(username), Some(password)) => SignIn::Password { username, password },
+                };
+                self.active = Some(Download::new(name.clone(), version, process, sign_in));
                 None
             }
             Err(error) => Some(Notice::failed(format!(

@@ -3,6 +3,9 @@ use crate::gd::ManifestId;
 #[derive(Clone, PartialEq)]
 pub enum DepotEvent {
     PasswordRequested,
+    CodeRequested(CodeKind),
+    WrongCode,
+    SignInFailed(String),
     ApproveInMobileApp,
     SignedIn,
     QrCodeFollows,
@@ -14,4 +17,10 @@ pub enum DepotEvent {
     Retrying(String),
     Failed(String),
     Other(String),
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub enum CodeKind {
+    App,
+    Email(Option<String>),
 }

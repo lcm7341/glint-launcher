@@ -9,7 +9,7 @@ mod manifest_listing_fetch;
 mod output_line;
 mod seed_folder;
 
-pub use depot_event::DepotEvent;
+pub use depot_event::{CodeKind, DepotEvent};
 pub use depot_process::{DepotProcess, DepotUpdate};
 pub use download_request::DownloadRequest;
 pub use fetch::{DEPOT_DOWNLOADER_VERSION, fetch_depot};
@@ -17,5 +17,5 @@ pub use fetch_error::FetchError;
 pub use locate::find_depot;
 pub use manifest_listing::ManifestListing;
 pub use manifest_listing_fetch::fetch_manifest_listing;
-pub use output_line::parse_output_line;
+pub use output_line::{parse_output_line, parse_prompt};
 pub use seed_folder::seed_folder;

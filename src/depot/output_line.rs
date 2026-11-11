@@ -1,4 +1,4 @@
-use crate::depot::DepotEvent;
+use crate::depot::{CodeKind, DepotEvent};
 
 pub fn parse_output_line(line: &str) -> Option<DepotEvent> {
     let line = line
@@ -17,8 +17,17 @@ pub fn parse_output_line(line: &str) -> Option<DepotEvent> {
     if let Some(username) = qr_signed_in(text) {
         return Some(DepotEvent::SignedInAs(username));
     }
-    if text.starts_with("Enter account password for") {
-        return Some(DepotEvent::PasswordRequested);
+    if let Some(prompt) = parse_prompt(text) {
+        return Some(prompt);
+    }
+    if text.starts_with("The previous 2-factor auth code you have provided is incorrect") {
+        return Some(DepotEvent::WrongCode);
+    }
+    if let Some(reason) = text
+        .strip_prefix("Failed to authenticate with Steam: ")
+        .or_else(|| text.strip_prefix("Unable to login to Steam3: "))
+    {
+        return Some(DepotEvent::SignInFailed(reason.to_owned()));
     }
     if text.starts_with("STEAM GUARD! Use the Steam Mobile App to confirm") {
         return Some(DepotEvent::ApproveInMobileApp);
@@ -42,6 +51,31 @@ pub fn parse_output_line(line: &str) -> Option<DepotEvent> {
         return Some(DepotEvent::Retrying(text.to_owned()));
     }
     Some(DepotEvent::Other(text.to_owned()))
+}
+
+/// a prompt waiting for input, which ends without a newline
+pub fn parse_prompt(text: &str) -> Option<DepotEvent> {
+    let text = text.trim();
+    if !text.ends_with(':') {
+        return None;
+    }
+    if text.starts_with("Enter account password for") {
+        return Some(DepotEvent::PasswordRequested);
+    }
+    let text = text.strip_prefix("STEAM GUARD! ").unwrap_or(text);
+    if text.starts_with("Please enter your 2-factor auth code")
+        || text.starts_with("Please enter your 2 factor auth code")
+    {
+        return Some(DepotEvent::CodeRequested(CodeKind::App));
+    }
+    if let Some(email) = text.strip_prefix("Please enter the auth code sent to the email at ") {
+        let email = email.trim_end_matches(':').trim().to_owned();
+        return Some(DepotEvent::CodeRequested(CodeKind::Email(Some(email))));
+    }
+    if text.starts_with("Please enter the authentication code sent to your email") {
+        return Some(DepotEvent::CodeRequested(CodeKind::Email(None)));
+    }
+    None
 }
 
 fn qr_row(line: &str) -> Option<Vec<bool>> {

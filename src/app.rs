@@ -45,6 +45,7 @@ mod windows_steam;
 mod wine;
 
 use downloads::Downloads;
+pub(crate) use downloads::{Credentials, SteamPrompt};
 pub(crate) use mods::ModLoader;
 use mods::ModManager;
 pub(crate) use mods::{EchoState, ModChange, ModsState};
@@ -237,7 +238,11 @@ impl App {
             }
             Action::Rename { from, to } => self.library.rename(&from, to, &mut self.activity),
             Action::Delete(name) => self.library.delete(&name, &mut self.activity),
-            Action::Download(name) => self.start_download(&name),
+            Action::Download(name) => self.start_download(&name, None),
+            Action::SignInAndDownload { instance, sign_in } => {
+                self.start_download(&instance, Some(sign_in))
+            }
+
             Action::InstallGeode(name) => self.start_geode_install(&name),
             Action::RemoveGeode(name) => self.remove_geode_from(&name),
             Action::Mod {
@@ -272,8 +277,8 @@ impl App {
                 self.save_settings();
                 None
             }
-            Action::CancelDownload => {
-                self.downloads.cancel();
+            Action::AnswerSteam(_) | Action::SignInWithQr | Action::CancelDownload => {
+                self.steer_download(action);
                 None
             }
             Action::OpenFolder(name) => self.open_instance_folder(&name),

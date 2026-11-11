@@ -21,8 +21,8 @@ pub(super) fn show(ui: &mut Ui, window: &mut Window) {
                     ui.label(download.detail())
                         .muted()
                         .font_size(12)
-                        .wrap(false)
-                        .style(|style| style.width(Fixed(220.0)).clip(true));
+                        .truncate()
+                        .style(|style| style.width(Fixed(220.0)));
                     if ui.button("Cancel download").height(22).clicked() {
                         window.actions.push(Action::CancelDownload);
                     }

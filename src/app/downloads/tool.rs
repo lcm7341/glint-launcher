@@ -1,4 +1,4 @@
-use super::Downloads;
+use super::{Credentials, Downloads};
 use crate::app::{Activity, Notice};
 use crate::depot::{DEPOT_DOWNLOADER_VERSION, fetch_depot};
 use crate::instances::InstanceName;
@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 pub(super) struct ToolFetch {
     instance: InstanceName,
+    sign_in: Option<Credentials>,
     job: Job<Result<PathBuf, String>>,
 }
 
@@ -22,6 +23,7 @@ impl Downloads {
     pub(super) fn fetch_tool(
         &mut self,
         name: &InstanceName,
+        sign_in: Option<Credentials>,
         notify: &Notify,
         activity: &mut Activity,
     ) -> Option<Notice> {
@@ -39,19 +41,23 @@ impl Downloads {
         ));
         self.fetching = Some(ToolFetch {
             instance: name.clone(),
+            sign_in,
             job,
         });
         None
     }
 
-    pub(super) fn poll_tool(&mut self, activity: &mut Activity) -> Option<InstanceName> {
+    pub(super) fn poll_tool(
+        &mut self,
+        activity: &mut Activity,
+    ) -> Option<(InstanceName, Option<Credentials>)> {
         let fetched = self.fetching.as_ref()?.job.take()?;
-        let name = self.fetching.take()?.instance;
+        let fetch = self.fetching.take()?;
         match fetched {
             Ok(program) => {
                 activity.push_log(format!("Got DepotDownloader ({})", program.display()));
                 self.program = Some(program);
-                Some(name)
+                Some((fetch.instance, fetch.sign_in))
             }
             Err(reason) => {
                 let tools = self

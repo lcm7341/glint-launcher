@@ -1,6 +1,6 @@
+use super::{Credentials, DownloadPlan, Downloads};
 use super::{Download, Outcome};
-use super::{DownloadPlan, Downloads};
-use crate::app::{App, Notice};
+use crate::app::{Action, App, Notice};
 use crate::instances::InstanceName;
 
 impl App {
@@ -14,8 +14,8 @@ impl App {
         self.downloads.is_fetching()
     }
     pub(in crate::app) fn poll_depot_fetch(&mut self) {
-        if let Some(name) = self.downloads.poll_tool(&mut self.activity) {
-            let notice = self.start_download(&name);
+        if let Some((name, sign_in)) = self.downloads.poll_tool(&mut self.activity) {
+            let notice = self.start_download(&name, sign_in);
             self.activity.extend(notice);
         }
     }
@@ -52,15 +52,15 @@ impl App {
                     )),
                 }
             }
-            Outcome::NeedsSignIn if !was_qr => {
+            Outcome::SwitchToQr if !was_qr => {
                 self.settings.steam_username = None;
                 self.save_settings();
-                self.push_log("Sign-in expired, showing QR code".to_owned());
-                let notice = self.start_download(&name);
+                self.push_log("Signing in with a QR code instead".to_owned());
+                let notice = self.start_download(&name, None);
                 self.activity.extend(notice);
                 return;
             }
-            Outcome::NeedsSignIn => Notice::failed("Steam asked for a password, try again"),
+            Outcome::SwitchToQr => return,
             Outcome::Failed(reason) => {
                 Notice::failed(format!("Download of \"{name}\" failed: {reason}"))
             }
@@ -69,14 +69,28 @@ impl App {
         self.refresh();
     }
 
-    pub(in crate::app) fn start_download(&mut self, name: &InstanceName) -> Option<Notice> {
+    pub(in crate::app) fn steer_download(&mut self, action: Action) {
+        match action {
+            Action::AnswerSteam(text) => self.downloads.answer(&text),
+            Action::SignInWithQr => self.downloads.switch_to_qr(),
+            Action::CancelDownload => self.downloads.cancel(),
+            _ => {}
+        }
+    }
+
+    /// a None sign-in uses the saved account, or a QR code without one
+    pub(in crate::app) fn start_download(
+        &mut self,
+        name: &InstanceName,
+        sign_in: Option<Credentials>,
+    ) -> Option<Notice> {
         if self.downloads.active().is_some() {
             return Some(Notice::failed("A download is running"));
         }
         let Some(_program) = self.downloads.program() else {
             return self
                 .downloads
-                .fetch_tool(name, &self.notify, &mut self.activity);
+                .fetch_tool(name, sign_in, &self.notify, &mut self.activity);
         };
         let Some(Ok(instance)) = self.library.find(name) else {
             return Some(Notice::failed(format!(
@@ -91,11 +105,16 @@ impl App {
                 config.platform.display_name()
             )));
         };
+        let (account, password) = match sign_in {
+            Some(sign_in) => (Some(sign_in.username), Some(sign_in.password)),
+            None => (self.settings.steam_username.clone(), None),
+        };
         let plan = DownloadPlan {
             instance,
             entry,
             seed: Downloads::seed_for(instance, self.library.entries()),
-            account: self.settings.steam_username.clone(),
+            account,
+            password,
         };
         self.downloads.start(plan, &self.notify, &mut self.activity)
     }

@@ -26,6 +26,7 @@ pub(crate) struct Window {
     log_seen: usize,
     filter: String,
     show_steam_account: bool,
+    steam_answer: String,
     pub(crate) dialog: Option<Dialog>,
     pub(crate) actions: Vec<Action>,
 }
@@ -48,6 +49,7 @@ impl Window {
             log_seen: 0,
             filter: String::new(),
             show_steam_account: false,
+            steam_answer: String::new(),
             dialog,
             actions: Vec::new(),
         }
@@ -92,6 +94,12 @@ impl Window {
             });
         crate::ui::dialogs::show(ui, self);
         crate::ui::dialogs::steam_sign_in::qr_dialog(ui, &self.app, &mut self.actions);
+        crate::ui::dialogs::steam_sign_in::prompt_dialog(
+            ui,
+            &self.app,
+            &mut self.steam_answer,
+            &mut self.actions,
+        );
         self.apply(ui);
         if self.app.should_quit() {
             ui.quit();
@@ -124,6 +132,11 @@ impl Window {
         match click {
             Click::Run(action) => self.actions.push(action),
             Click::SetUpWine(name) => self.dialog = Some(Dialog::WineSetup(name)),
+            Click::SignIn(name) => {
+                self.dialog = Some(Dialog::SteamSignIn(
+                    crate::ui::dialogs::steam_sign_in::SignInForm::new(name),
+                ));
+            }
         }
     }
 

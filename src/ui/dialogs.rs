@@ -15,6 +15,7 @@ use crate::app::{Action, App};
 use crate::format::home_relative;
 use crate::gd::is_encrypted_mac_build;
 use crate::ui::dialogs::add_existing::AddExisting;
+use crate::ui::dialogs::steam_sign_in::SignInForm;
 use crate::ui::form::{DIALOG_WIDTH, empty_label, field_label, show_field_hint, show_form};
 use crate::ui::mods::browse::GeodeIndex;
 use crate::ui::window::Window;
@@ -40,6 +41,7 @@ pub(crate) enum Dialog {
     AddExisting(AddExisting),
     GeodeIndex(GeodeIndex),
     MoveToApplications,
+    SteamSignIn(SignInForm),
 }
 
 impl Dialog {
@@ -101,6 +103,7 @@ pub(crate) fn show(ui: &mut Ui, window: &mut Window) {
             index.show(ui, &mut open, &window.app, &mut window.actions);
         }
         Dialog::MoveToApplications => show_move_to_applications(ui, window, &mut open),
+        Dialog::SteamSignIn(form) => steam_sign_in::show_sign_in(ui, window, &mut open, form),
     }
     if open && window.dialog.is_none() {
         window.dialog = Some(dialog);

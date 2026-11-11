@@ -13,6 +13,7 @@ pub(crate) struct Play {
 pub(crate) enum Click {
     Run(Action),
     SetUpWine(InstanceName),
+    SignIn(InstanceName),
 }
 
 impl Play {
@@ -83,16 +84,16 @@ pub(crate) fn play(launcher: &App, instance: Option<&Instance>) -> Play {
     let has_tool = launcher.depot_downloader().is_some();
     let hint = match (has_tool, launcher.steam_account()) {
         (true, Some(account)) => format!("Download {version} as {account}"),
-        (true, None) => {
-            format!("Download {version} (sign in with a QR code)")
-        }
+        (true, None) => format!("Sign in to Steam to download {version}"),
         (false, _) if launcher.can_fetch_depot() => format!("Download {version}"),
         (false, _) => match launcher.tools_dir() {
             Some(tools) => format!("DepotDownloader not found, put it in {}", tools.display()),
             None => "DepotDownloader not found".to_owned(),
         },
     };
-    if has_tool || launcher.can_fetch_depot() {
+    if (has_tool || launcher.can_fetch_depot()) && launcher.steam_account().is_none() {
+        Play::on(label, hint, Click::SignIn(name))
+    } else if has_tool || launcher.can_fetch_depot() {
         Play::on(label, hint, Click::Run(Action::Download(name)))
     } else {
         Play::off(label, hint)

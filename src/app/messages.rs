@@ -1,3 +1,4 @@
+use super::Credentials;
 use super::ModChange;
 use crate::gd::CatalogEntry;
 use crate::instances::InstanceName;
@@ -30,6 +31,12 @@ pub(crate) enum Action {
     OpenLink(String),
     OpenSaveFolder(InstanceName),
     Download(InstanceName),
+    SignInAndDownload {
+        instance: InstanceName,
+        sign_in: Credentials,
+    },
+    AnswerSteam(String),
+    SignInWithQr,
     CancelDownload,
     InstallUpdate,
     MoveToApplications,

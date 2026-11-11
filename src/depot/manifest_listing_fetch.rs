@@ -31,7 +31,11 @@ pub fn fetch_manifest_listing(
         let _ = woken.recv_timeout(Duration::from_millis(100));
         for update in process.take_updates() {
             match update {
-                DepotUpdate::Event(DepotEvent::PasswordRequested | DepotEvent::QrCodeFollows) => {
+                DepotUpdate::Event(
+                    DepotEvent::PasswordRequested
+                    | DepotEvent::CodeRequested(_)
+                    | DepotEvent::QrCodeFollows,
+                ) => {
                     process.cancel();
                     return Err("Steam wants a new sign-in".to_owned());
                 }
